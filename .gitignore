@@ -1,0 +1,8 @@
+*.mp4
+venv/
+__pycache__/
+30_sec_cuts/
+60_sec_cuts/
+.env
+.env.example
+temp_build/
