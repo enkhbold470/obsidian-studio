@@ -35,7 +35,8 @@ class Config:
     shake_speed: float = 15
     font_name: str = "Arial Black"
     font_size: int = 100
-    text_color: str = "#FFFFFF"
+    # TikTok-style: yellow text with black outline
+    text_color: str = "#FDE047"
     outline_color: str = "#000000"
     peter_voice: str = "echo"
     stewie_voice: str = "alloy"

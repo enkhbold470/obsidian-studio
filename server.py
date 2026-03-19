@@ -65,7 +65,7 @@ def generate():
         shake_speed=float(data.get("shake_speed", 15)),
         font_name=data.get("font_name", "Arial"),
         font_size=int(data.get("font_size", 100)),
-        text_color=data.get("text_color", "#FFFFFF"),
+        text_color=data.get("text_color", "#FDE047"),
         outline_color=data.get("outline_color", "#000000"),
         peter_voice=data.get("peter_voice", "echo"),
         stewie_voice=data.get("stewie_voice", "alloy"),

@@ -12,7 +12,10 @@
   <form id="form" class="space-y-4">
     <div>
       <label class="block font-bold">Topic</label>
-      <input name="topic" type="text" placeholder="study python 101" class="w-full border-2 border-black p-2" required>
+      <div class="flex gap-2">
+        <textarea name="topic" rows="3" placeholder="Paste a paragraph / dump of what you want the video to be about…" class="flex-1 border-2 border-black p-2 resize-y" required></textarea>
+        <button type="button" id="luckyBtn" class="border-2 border-black px-3 font-bold hover:bg-gray-100 whitespace-nowrap">I'm feeling lucky</button>
+      </div>
     </div>
 
     <div class="grid grid-cols-2 gap-4">
@@ -54,7 +57,7 @@
     <div class="grid grid-cols-2 gap-4">
       <div>
         <label class="block font-bold">Text color</label>
-        <input name="text_color" type="color" value="#FFFFFF" class="w-full h-10 border-2 border-black cursor-pointer">
+        <input name="text_color" type="color" value="#FDE047" class="w-full h-10 border-2 border-black cursor-pointer">
       </div>
       <div>
         <label class="block font-bold">Outline color</label>
@@ -97,10 +100,7 @@
     </div>
 
     <input type="hidden" name="lucky" id="lucky" value="">
-    <div class="flex gap-2">
-      <button type="submit" class="flex-1 border-2 border-black bg-black text-white p-3 font-bold hover:bg-gray-800">Generate</button>
-      <button type="button" id="luckyBtn" class="flex-1 border-2 border-black p-3 font-bold hover:bg-gray-100">I'm feeling lucky</button>
-    </div>
+    <button type="submit" class="w-full border-2 border-black bg-black text-white p-3 font-bold hover:bg-gray-800">Generate</button>
   </form>
 
   <div id="status" class="mt-4 p-3 border-2 border-black hidden"></div>
@@ -127,6 +127,17 @@
     document.getElementById('form').onsubmit=async e=>{
       e.preventDefault();
       const s=document.getElementById('status'), v=document.getElementById('video');
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      if (submitBtn?.disabled) return;
+      const originalBtnText = submitBtn?.textContent || 'Generate';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Generating… (~30s)';
+        submitBtn.classList.add('opacity-60', 'cursor-not-allowed');
+      }
+      const thirtySecTimer = setTimeout(() => {
+        if (submitBtn?.disabled) submitBtn.textContent = 'Still generating…';
+      }, 30_000);
       s.style.display=''; s.textContent='Generating...'; v.classList.add('hidden');
       const fd=new FormData(e.target);
       if(document.getElementById('lucky').value==='1') fd.set('lucky','1');
@@ -141,6 +152,13 @@
         v.classList.remove('hidden');
       } catch(err) {
         s.textContent='Error: '+err.message;
+      } finally {
+        clearTimeout(thirtySecTimer);
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalBtnText;
+          submitBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+        }
       }
       document.getElementById('lucky').value='';
       document.getElementById('bgInput').required=true;
