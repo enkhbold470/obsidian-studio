@@ -1,5 +1,7 @@
 *.mp4
+*.mkv
 venv/
+.venv/
 __pycache__/
 30_sec_cuts/
 60_sec_cuts/
