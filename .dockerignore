@@ -1,0 +1,13 @@
+.git
+.gitignore
+**/__pycache__
+**/.venv
+**/node_modules
+frontend/dist
+temp_build
+storage/uploads
+backend/instance
+.env
+*.mp4
+*.mkv
+*.webm

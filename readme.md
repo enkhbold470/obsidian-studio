@@ -1,37 +1,36 @@
 # brainrot video generator
 
-generate absolute cinema right from your terminal. 
+Generate vertical “brainrot” debate clips: AI-written Peter vs Stewie dialogue, OpenAI TTS + Whisper timings, FFmpeg overlays + subtitles on your background footage.
 
-![screenshot](screenshot.png)
+## Repo layout
 
-## the stars
-here are our world-class actors:
+- **`backend/`** — Flask API, SQLite auth, video pipeline (`brainrot.py`).
+- **`frontend/`** — Vite + React + Tailwind UI.
+- **`storage/public/`** — list of bundled background videos for the UI.
+- **`storage/uploads/`** — per-request uploads (git-ignored).
+- **`assets/`** — `peter.png` / `stewie.png` (see `assets/README.md`).
+- **`docs/`** — architecture, local dev, **Dokploy** deploy, optional scale-up notes (`OPERATIONS.md`).
 
-<p align="center">
-  <img src="peter.png" width="150" />
-  <img src="stewie.png" width="150" />
-</p>
+## Quick start (web)
 
-## what it is
-a cli tool that takes a topic, asks open ai to write an unhinged debate between peter and stewie, grabs tts, and uses a cursed ffmpeg command to smash it all over minecraft parkour footage. 
+1. Copy `.env.example` to `.env` and set `OPENAI_API_KEY` and a strong `SECRET_KEY`.
+2. Add character PNGs under **`assets/`** or the repo root.
+3. Put background videos in **`storage/public/`** (e.g. 9:16 `.mp4`).
+4. Install backend deps and run API: see **`docs/DEVELOPMENT.md`**.
+5. In another terminal: `cd frontend && bun install && bun run dev` → open the printed local URL.
 
-words pop up one by one. characters slide in and furiously vibrate when they talk. peak 9:16 content.
+Production-like single server: build the frontend (`bun run build`), then `python -m backend.main` serves both UI and `/api/*`.
 
-## how to run
+## CLI
 
-**CLI:**
 ```bash
-uv run app.py --topic "pineapple on pizza" --bg "path/to/video.mp4" [--lines 8] [--speed 1.2] [--shake 15]
+uv run app.py --topic "pineapple on pizza" --bg /path/to/video.mp4 [--lines 8] [--speed 1.2] [--shake 15]
 ```
 
-**Web UI:**
-```bash
-uv run server.py
-```
-Open http://localhost:5000 — single page: topic, dialogue editor, TTS/GPT options, font/color, output format (mp4/mkv), bg upload. Video plays when done.
+## Deploy
 
-1. Set `OPENAI_API_KEY` in `.env`
-2. macOS: FFmpeg auto-downloads if needed (~50MB)
+See **`docs/DEPLOY_DOKPLOY.md`** for Docker + Dokploy (ports, env, volumes).
 
-## license
-mit. free to steal and get famous.
+## License
+
+MIT.

@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Always reserve vertical scrollbar gutter (dialogue grows; page scrolls). */
+html {
+  overflow-y: scroll;
+}

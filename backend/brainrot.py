@@ -10,13 +10,39 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from backend.paths import PROJECT_ROOT
+
 FFMPEG_BIN = "ffmpeg"
 FFPROBE_BIN = "ffprobe"
 
 TTS_VOICES = ["alloy", "ash", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer"]
 TTS_MODELS = ["tts-1", "tts-1-hd"]
-GPT_MODELS = ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4o-2024-11-20"]
+
+GPT_MODELS = [
+    "gpt-5.4",
+    "gpt-5.4-2026-03-05",
+    "gpt-5.3-chat-latest",
+    "gpt-5.2",
+    "gpt-5.2-2025-12-11",
+    "gpt-5.1",
+    "gpt-5.1-2025-11-13",
+    "gpt-5",
+    "gpt-5-2025-08-07",
+    "gpt-4o",
+    "gpt-4o-mini",
+    "gpt-4.1",
+    "gpt-4o-2024-11-20",
+]
 ASS_FONTS = ["Arial", "Arial Black", "Impact", "Helvetica", "Verdana", "Comic Sans MS"]
+
+
+def _overlay_png(root: Path, basename: str) -> Path:
+    """Resolve peter.png / stewie.png from project root or assets/."""
+    for base in (root, root / "assets"):
+        p = base / basename
+        if p.is_file():
+            return p
+    raise FileNotFoundError(f"Missing {basename} — place it in {root} or {root / 'assets'}")
 
 
 def _rgb_to_ass(color: str) -> str:
@@ -35,13 +61,12 @@ class Config:
     shake_speed: float = 15
     font_name: str = "Arial Black"
     font_size: int = 100
-    # TikTok-style: yellow text with black outline
     text_color: str = "#FDE047"
     outline_color: str = "#000000"
     peter_voice: str = "echo"
     stewie_voice: str = "alloy"
     tts_model: str = "tts-1"
-    gpt_model: str = "gpt-4o"
+    gpt_model: str = "gpt-5.4"
     output_format: str = "mp4"
 
 
@@ -54,7 +79,7 @@ def _ensure_ffmpeg() -> None:
     global FFMPEG_BIN, FFPROBE_BIN
     if _check_ffmpeg_has_ass("ffmpeg"):
         return
-    cache = Path(__file__).parent / "temp_build" / "ffmpeg_bin"
+    cache = PROJECT_ROOT / "temp_build" / "ffmpeg_bin"
     fe, fp = cache / "ffmpeg", cache / "ffprobe"
     if fe.exists() and fp.exists() and _check_ffmpeg_has_ass(str(fe)):
         FFMPEG_BIN, FFPROBE_BIN = str(fe), str(fp)
@@ -79,18 +104,41 @@ def _get_duration(path: Path) -> float:
     return float(r.stdout.strip())
 
 
+def generate_dialogue(client: Any, topic: str, dialogue_lines: int, gpt_model: str) -> list[dict[str, str]]:
+    """LLM-only: return dialogue list for review (Peter/Stewie lines)."""
+    prompt = f"""Unhinged brainrot debate between Peter and Stewie about {topic}.
+JSON: {{"dialogue":[{{"speaker":"Peter"|"Stewie","text":"..."}}]}}
+**{dialogue_lines} lines**, short punchy."""
+    r = client.chat.completions.create(
+        model=gpt_model,
+        messages=[{"role": "user", "content": prompt}],
+        response_format={"type": "json_object"},
+    )
+    return json.loads(r.choices[0].message.content)["dialogue"]
+
+
+def is_valid_dialogue(lines: Any) -> bool:
+    if not isinstance(lines, list) or len(lines) < 1:
+        return False
+    for item in lines:
+        if not isinstance(item, dict):
+            return False
+        if item.get("speaker") not in ("Peter", "Stewie"):
+            return False
+        if not str(item.get("text", "")).strip():
+            return False
+    return True
+
+
 def run_pipeline(cfg: Config, bg_path: Path, output_path: Path, client: Any, temp_dir: Path, project_root: Path | None = None) -> Path:
     _ensure_ffmpeg()
     temp_dir.mkdir(parents=True, exist_ok=True)
 
-    dialogue = cfg.dialogue
+    dialogue = list(cfg.dialogue) if cfg.dialogue else []
     if not dialogue:
-        prompt = f"""Unhinged brainrot debate between Peter and Stewie about {cfg.topic}.
-JSON: {{"dialogue":[{{"speaker":"Peter"|"Stewie","text":"..."}}]}}
-{cfg.dialogue_lines} lines, short punchy."""
-        r = client.chat.completions.create(model=cfg.gpt_model, messages=[{"role": "user", "content": prompt}],
-                                           response_format={"type": "json_object"})
-        dialogue = json.loads(r.choices[0].message.content)["dialogue"]
+        if not (cfg.topic or "").strip():
+            raise ValueError("Provide dialogue JSON or a topic (CLI auto-writes script).")
+        dialogue = generate_dialogue(client, (cfg.topic or "").strip(), cfg.dialogue_lines, cfg.gpt_model)
 
     voices = {"Peter": cfg.peter_voice, "Stewie": cfg.stewie_voice}
     segments = []
@@ -170,8 +218,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     if out.suffix.lower() != f".{cfg.output_format}":
         out = out.with_suffix(f".{cfg.output_format}")
 
-    root = project_root or Path(__file__).parent
-    subprocess.run([FFMPEG_BIN, "-y", "-i", str(bg_path), "-i", str(root / "peter.png"), "-i", str(root / "stewie.png"), "-i", str(combined),
+    root = project_root or PROJECT_ROOT
+    subprocess.run([FFMPEG_BIN, "-y", "-i", str(bg_path), "-i", str(_overlay_png(root, "peter.png")), "-i", str(_overlay_png(root, "stewie.png")), "-i", str(combined),
                     "-filter_complex", fc, "-map", "[v_out]", "-map", "[a_out]",
                     "-c:v", "libx264", "-preset", "fast", "-c:a", "aac", "-t", str(total), str(out)],
                    check=True, capture_output=True)

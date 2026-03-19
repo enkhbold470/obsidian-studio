@@ -1,0 +1,1 @@
+"""Brainrot backend package."""

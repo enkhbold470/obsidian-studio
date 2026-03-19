@@ -1,12 +1,14 @@
+"""CLI entry — topic + background video → final render."""
 import argparse
 from pathlib import Path
 
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from brainrot import Config, run_pipeline
+from backend.paths import PROJECT_ROOT
+from backend.brainrot import Config, run_pipeline
 
-load_dotenv(Path(__file__).parent / ".env")
+load_dotenv(PROJECT_ROOT / ".env")
 
 
 def main():
@@ -25,9 +27,9 @@ def main():
         return
 
     cfg = Config(topic=args.topic, dialogue_lines=args.lines, tts_speed=args.speed, shake_speed=args.shake)
-    temp_dir = Path("temp_build")
-    temp_dir.mkdir(exist_ok=True)
-    out = run_pipeline(cfg, bg_path, Path(args.output), OpenAI(), temp_dir)
+    temp_dir = PROJECT_ROOT / "temp_build" / "cli"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    out = run_pipeline(cfg, bg_path, Path(args.output), OpenAI(), temp_dir, PROJECT_ROOT)
     print(f"Done: {out}")
 
 
