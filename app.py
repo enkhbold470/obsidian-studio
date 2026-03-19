@@ -2,6 +2,9 @@ import os
 import json
 import subprocess
 import argparse
+import zipfile
+import urllib.request
+import shutil
 from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -9,8 +12,49 @@ from openai import OpenAI
 load_dotenv(Path(__file__).parent / ".env")
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+# FFmpeg binaries with libass (for burned-in subtitles). Set at startup.
+FFMPEG_BIN = "ffmpeg"
+FFPROBE_BIN = "ffprobe"
+
+def _check_ffmpeg_has_ass(ffmpeg_path: str) -> bool:
+    result = subprocess.run(
+        [ffmpeg_path, "-h", "filter=ass"],
+        capture_output=True,
+        text=True,
+    )
+    return "Unknown filter" not in (result.stdout + result.stderr)
+
+def _ensure_ffmpeg_with_ass() -> None:
+    """Use system ffmpeg if it has ass; else download evermeet.cx build (has libass)."""
+    global FFMPEG_BIN, FFPROBE_BIN
+    if _check_ffmpeg_has_ass("ffmpeg"):
+        return
+    cache_dir = Path(__file__).parent / "temp_build" / "ffmpeg_bin"
+    ffmpeg_exe = cache_dir / "ffmpeg"
+    ffprobe_exe = cache_dir / "ffprobe"
+    if ffmpeg_exe.exists() and ffprobe_exe.exists() and _check_ffmpeg_has_ass(str(ffmpeg_exe)):
+        FFMPEG_BIN = str(ffmpeg_exe)
+        FFPROBE_BIN = str(ffprobe_exe)
+        return
+    print("Downloading FFmpeg with subtitle support (one-time)...")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    for name, url in [
+        ("ffmpeg", "https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip"),
+        ("ffprobe", "https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip"),
+    ]:
+        zip_path = cache_dir / f"{name}.zip"
+        urllib.request.urlretrieve(url, zip_path)
+        with zipfile.ZipFile(zip_path, "r") as z:
+            with z.open(name) as src, open(cache_dir / name, "wb") as dst:
+                shutil.copyfileobj(src, dst)
+        (cache_dir / name).chmod(0o755)
+        zip_path.unlink()
+    FFMPEG_BIN = str(ffmpeg_exe)
+    FFPROBE_BIN = str(ffprobe_exe)
+    print("  Done. Using FFmpeg with burned-in subtitle support.")
+
 def get_duration(file_path):
-    cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+    cmd = [FFPROBE_BIN, "-v", "error", "-show_entries", "format=duration",
            "-of", "default=noprint_wrappers=1:nokey=1", str(file_path)]
     result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True, check=True)
     return float(result.stdout.strip())
@@ -68,7 +112,7 @@ def build_combined_audio(audio_segments, output_audio_path):
             f.write(f"file '{seg['file'].name}'\n")
             
     subprocess.run([
-        "ffmpeg", "-y", "-f", "concat", "-safe", "0", 
+        FFMPEG_BIN, "-y", "-f", "concat", "-safe", "0", 
         "-i", str(list_file), "-c", "copy", str(output_audio_path)
     ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
@@ -156,24 +200,24 @@ def build_video(bg_video, final_audio, speaker_timings, ass_file, total_duration
     stewie_x = "+".join(s_x_exprs) if s_x_exprs else "-w"
     stewie_y = "+".join(s_y_exprs) if s_y_exprs else "-h"
 
-    # Make absolute path for ASS because FFmpeg gets confused
-    ass_abs_path = str(ass_file.resolve()).replace('\\', '/')
-    # FFmpeg ass filter requires escaping colons and backslashes
-    ass_filter_path = ass_abs_path.replace(':', '\\:')
+    ass_filter_path = str(ass_file).replace('\\', '/')
+    if ':' in ass_filter_path:  # Windows C:\ paths need escaping
+        ass_filter_path = ass_filter_path.replace(':', '\\:')
+    video_chain = f"[v2]ass='{ass_filter_path}'[v_out]"
     
     filter_complex = f"""
     [1:v]scale=300:-1[p]; 
     [2:v]scale=200:-1[s];
     [0:v][p]overlay=x='{peter_x}':y='{peter_y}':enable='{peter_enable}'[v1];
     [v1][s]overlay=x='{stewie_x}':y='{stewie_y}':enable='{stewie_enable}'[v2];
-    [v2]ass='{ass_filter_path}'[v_out];
+    {video_chain};
     [0:a]volume=0.1[a_bg];
     [3:a]volume=1.0[a_dialogue];
     [a_bg][a_dialogue]amix=inputs=2:duration=first:dropout_transition=2[a_out]
     """
     
     cmd = [
-        "ffmpeg", "-y",
+        FFMPEG_BIN, "-y",
         "-i", str(bg_video),
         "-i", "peter.png",
         "-i", "stewie.png",
@@ -184,7 +228,7 @@ def build_video(bg_video, final_audio, speaker_timings, ass_file, total_duration
         "-c:v", "libx264", "-preset", "fast",
         "-c:a", "aac",
         "-t", str(total_duration),
-        str(output_path)
+        output_path,
     ]
     
     subprocess.run(cmd, check=True)
@@ -201,6 +245,8 @@ def main():
     if not bg_path.exists():
         print(f"Error: Could not find bg video {args.bg}")
         return
+
+    _ensure_ffmpeg_with_ass()
 
     # Setup temp dir
     temp_dir = Path("temp_build")

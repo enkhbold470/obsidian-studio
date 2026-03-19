@@ -20,7 +20,8 @@ words pop up one by one. characters slide in and furiously vibrate when they tal
 ## how to run
 1. get assets: grab a 9:16 background video.
 2. set your `OPENAI_API_KEY` in a `.env` file.
-3. run the python magic:
+3. **macOS users**: if your FFmpeg lacks libass, the app auto-downloads a build with subtitle support (one-time, ~50MB to `temp_build/ffmpeg_bin/`).
+4. run:
 ```bash
 source venv/bin/activate
 pip install -r requirements.txt
