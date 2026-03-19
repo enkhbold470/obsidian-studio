@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brainrot Maker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-white text-black p-4 max-w-4xl mx-auto">
+  <h1 class="text-2xl font-bold border-b-2 border-black pb-2 mb-4">Brainrot Maker</h1>
+
+  <form id="form" class="space-y-4">
+    <div>
+      <label class="block font-bold">Topic</label>
+      <input name="topic" type="text" placeholder="study python 101" class="w-full border-2 border-black p-2" required>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block font-bold">Dialogue lines</label>
+        <input name="dialogue_lines" type="number" value="8" min="2" max="20" class="w-full border-2 border-black p-2">
+      </div>
+      <div>
+        <label class="block font-bold">TTS speed</label>
+        <input name="tts_speed" type="number" step="0.1" value="1.2" min="0.5" max="2" class="w-full border-2 border-black p-2">
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block font-bold">Shake speed (lower=slower)</label>
+        <input name="shake_speed" type="number" value="15" min="5" max="50" class="w-full border-2 border-black p-2">
+      </div>
+      <div>
+        <label class="block font-bold">Output</label>
+        <select name="output_format" class="w-full border-2 border-black p-2">
+          <option value="mp4">MP4</option>
+          <option value="mkv">MKV</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block font-bold">Font</label>
+        <select name="font_name" class="w-full border-2 border-black p-2" id="font_name"></select>
+      </div>
+      <div>
+        <label class="block font-bold">Font size</label>
+        <input name="font_size" type="number" value="100" min="40" max="200" class="w-full border-2 border-black p-2">
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block font-bold">Text color</label>
+        <input name="text_color" type="color" value="#FFFFFF" class="w-full h-10 border-2 border-black cursor-pointer">
+      </div>
+      <div>
+        <label class="block font-bold">Outline color</label>
+        <input name="outline_color" type="color" value="#000000" class="w-full h-10 border-2 border-black cursor-pointer">
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block font-bold">Peter voice</label>
+        <select name="peter_voice" class="w-full border-2 border-black p-2" id="peter_voice"></select>
+      </div>
+      <div>
+        <label class="block font-bold">Stewie voice</label>
+        <select name="stewie_voice" class="w-full border-2 border-black p-2" id="stewie_voice"></select>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block font-bold">GPT model</label>
+        <select name="gpt_model" class="w-full border-2 border-black p-2" id="gpt_model"></select>
+      </div>
+      <div>
+        <label class="block font-bold">TTS model</label>
+        <select name="tts_model" class="w-full border-2 border-black p-2" id="tts_model"></select>
+      </div>
+    </div>
+
+    <div>
+      <label class="block font-bold">Dialogue (edit before generate, JSON)</label>
+      <textarea name="dialogue" id="dialogue" rows="6" class="w-full border-2 border-black p-2 font-mono text-sm" placeholder='[{"speaker":"Peter","text":"..."},{"speaker":"Stewie","text":"..."}]'>[]</textarea>
+      <p class="text-sm text-gray-600 mt-1">Leave [] to auto-generate from topic</p>
+    </div>
+
+    <div>
+      <label class="block font-bold">Background video (9:16)</label>
+      <input name="bg" type="file" accept="video/*" class="w-full border-2 border-black p-2" id="bgInput" required>
+      <p class="text-sm text-gray-600 mt-1">Or use I'm feeling lucky for default minecraft_parkour1.mp4</p>
+    </div>
+
+    <input type="hidden" name="lucky" id="lucky" value="">
+    <div class="flex gap-2">
+      <button type="submit" class="flex-1 border-2 border-black bg-black text-white p-3 font-bold hover:bg-gray-800">Generate</button>
+      <button type="button" id="luckyBtn" class="flex-1 border-2 border-black p-3 font-bold hover:bg-gray-100">I'm feeling lucky</button>
+    </div>
+  </form>
+
+  <div id="status" class="mt-4 p-3 border-2 border-black hidden"></div>
+  <div id="video" class="mt-4 hidden">
+    <video controls class="w-full border-2 border-black"></video>
+  </div>
+
+  <script>
+    fetch('/api/options').then(r=>r.json()).then(o=>{
+      o.fonts.forEach(f=>{ const s=document.createElement('option'); s.value=f; s.textContent=f; document.getElementById('font_name').append(s); });
+      o.tts_voices.forEach(v=>{ const s=document.createElement('option'); s.value=v; s.textContent=v; document.getElementById('peter_voice').append(s.cloneNode(true)); document.getElementById('stewie_voice').append(s); });
+      o.gpt_models.forEach(m=>{ const s=document.createElement('option'); s.value=m; s.textContent=m; document.getElementById('gpt_model').append(s); });
+      o.tts_models.forEach(m=>{ const s=document.createElement('option'); s.value=m; s.textContent=m; document.getElementById('tts_model').append(s); });
+      document.getElementById('peter_voice').value='echo'; document.getElementById('stewie_voice').value='alloy';
+    });
+    const LUCKY_TOPICS=['pineapple on pizza','crypto','AI taking over','the best programming language','why we exist','coffee vs tea','aliens','time travel'];
+    document.getElementById('luckyBtn').onclick=()=>{
+      document.getElementById('lucky').value='1';
+      document.getElementById('bgInput').required=false;
+      document.getElementById('bgInput').value='';
+      document.querySelector('[name=topic]').value=LUCKY_TOPICS[Math.floor(Math.random()*LUCKY_TOPICS.length)];
+      document.getElementById('form').requestSubmit();
+    };
+    document.getElementById('form').onsubmit=async e=>{
+      e.preventDefault();
+      const s=document.getElementById('status'), v=document.getElementById('video');
+      s.style.display=''; s.textContent='Generating...'; v.classList.add('hidden');
+      const fd=new FormData(e.target);
+      if(document.getElementById('lucky').value==='1') fd.set('lucky','1');
+      try {
+        const r=await fetch('/api/generate',{method:'POST',body:fd});
+        const j=await r.json();
+        if(!r.ok) throw new Error(j.error||'Failed');
+        s.textContent='Done';
+        const vid=v.querySelector('video');
+        vid.src='/api/output/'+j.file.split('/').pop();
+        vid.load();
+        v.classList.remove('hidden');
+      } catch(err) {
+        s.textContent='Error: '+err.message;
+      }
+      document.getElementById('lucky').value='';
+      document.getElementById('bgInput').required=true;
+    };
+  </script>
+</body>
+</html>

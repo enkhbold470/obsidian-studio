@@ -18,15 +18,20 @@ a cli tool that takes a topic, asks open ai to write an unhinged debate between 
 words pop up one by one. characters slide in and furiously vibrate when they talk. peak 9:16 content.
 
 ## how to run
-1. get assets: grab a 9:16 background video.
-2. set your `OPENAI_API_KEY` in a `.env` file.
-3. **macOS users**: if your FFmpeg lacks libass, the app auto-downloads a build with subtitle support (one-time, ~50MB to `temp_build/ffmpeg_bin/`).
-4. run:
+
+**CLI:**
 ```bash
-source venv/bin/activate
-pip install -r requirements.txt
-python app.py --topic "pineapple on pizza" --bg "path/to/minecraft/parkour/video.mp4"
+uv run app.py --topic "pineapple on pizza" --bg "path/to/video.mp4" [--lines 8] [--speed 1.2] [--shake 15]
 ```
+
+**Web UI:**
+```bash
+uv run server.py
+```
+Open http://localhost:5000 — single page: topic, dialogue editor, TTS/GPT options, font/color, output format (mp4/mkv), bg upload. Video plays when done.
+
+1. Set `OPENAI_API_KEY` in `.env`
+2. macOS: FFmpeg auto-downloads if needed (~50MB)
 
 ## license
 mit. free to steal and get famous.
