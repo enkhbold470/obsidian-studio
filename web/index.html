@@ -9,14 +9,16 @@
 <body class="bg-white text-black p-4 max-w-4xl mx-auto">
   <h1 class="text-2xl font-bold border-b-2 border-black pb-2 mb-4">Brainrot Maker</h1>
 
-  <form id="form" class="space-y-4">
-    <div>
-      <label class="block font-bold">Topic</label>
-      <div class="flex gap-2">
-        <textarea name="topic" rows="3" placeholder="Paste a paragraph / dump of what you want the video to be about…" class="flex-1 border-2 border-black p-2 resize-y" required></textarea>
-        <button type="button" id="luckyBtn" class="border-2 border-black px-3 font-bold hover:bg-gray-100 whitespace-nowrap">I'm feeling lucky</button>
+  <div class="grid gap-4 md:grid-cols-2 md:items-start">
+    <form id="form" class="space-y-4">
+      <div>
+        <label class="block font-bold">Topic</label>
+        <div class="flex gap-2">
+          <textarea name="topic" rows="3" placeholder="Paste a paragraph / dump of what you want the video to be about…" class="flex-1 border-2 border-black p-2 resize-y" required></textarea>
+          <button type="button" id="luckyBtn" class="border-2 border-black px-3 font-bold hover:bg-gray-100 whitespace-nowrap">I'm feeling lucky</button>
+        </div>
+        <p class="text-sm text-gray-600 mt-1">Generate requires 10+ chars + a background video upload.</p>
       </div>
-    </div>
 
     <div class="grid grid-cols-2 gap-4">
       <div>
@@ -93,19 +95,21 @@
       <p class="text-sm text-gray-600 mt-1">Leave [] to auto-generate from topic</p>
     </div>
 
+      <div>
+        <label class="block font-bold">Background video (9:16)</label>
+        <input name="bg" type="file" accept="video/*" class="w-full border-2 border-black p-2" id="bgInput" required>
+      </div>
+
+      <input type="hidden" name="lucky" id="lucky" value="">
+      <button type="submit" class="w-full border-2 border-black bg-black text-white p-3 font-bold hover:bg-gray-800">Generate</button>
+    </form>
+
     <div>
-      <label class="block font-bold">Background video (9:16)</label>
-      <input name="bg" type="file" accept="video/*" class="w-full border-2 border-black p-2" id="bgInput" required>
-      <p class="text-sm text-gray-600 mt-1">Or use I'm feeling lucky for default minecraft_parkour1.mp4</p>
+      <div id="status" class="p-3 border-2 border-black hidden"></div>
+      <div id="video" class="mt-4 hidden">
+        <video controls class="w-full border-2 border-black"></video>
+      </div>
     </div>
-
-    <input type="hidden" name="lucky" id="lucky" value="">
-    <button type="submit" class="w-full border-2 border-black bg-black text-white p-3 font-bold hover:bg-gray-800">Generate</button>
-  </form>
-
-  <div id="status" class="mt-4 p-3 border-2 border-black hidden"></div>
-  <div id="video" class="mt-4 hidden">
-    <video controls class="w-full border-2 border-black"></video>
   </div>
 
   <script>
@@ -118,14 +122,26 @@
     });
     const LUCKY_TOPICS=['pineapple on pizza','crypto','AI taking over','the best programming language','why we exist','coffee vs tea','aliens','time travel'];
     document.getElementById('luckyBtn').onclick=()=>{
+      // human click fills content; does not auto-generate
       document.getElementById('lucky').value='1';
-      document.getElementById('bgInput').required=false;
-      document.getElementById('bgInput').value='';
       document.querySelector('[name=topic]').value=LUCKY_TOPICS[Math.floor(Math.random()*LUCKY_TOPICS.length)];
-      document.getElementById('form').requestSubmit();
     };
     document.getElementById('form').onsubmit=async e=>{
       e.preventDefault();
+      const topic = (e.target.querySelector('[name=topic]')?.value || '').trim();
+      const bgInput = document.getElementById('bgInput');
+      if (topic.length < 10) {
+        const s=document.getElementById('status');
+        s.style.display=''; s.classList.remove('hidden');
+        s.textContent='Error: Topic must be at least 10 characters.';
+        return;
+      }
+      if (!bgInput?.files?.length) {
+        const s=document.getElementById('status');
+        s.style.display=''; s.classList.remove('hidden');
+        s.textContent='Error: Please upload a background video.';
+        return;
+      }
       const s=document.getElementById('status'), v=document.getElementById('video');
       const submitBtn = e.target.querySelector('button[type="submit"]');
       if (submitBtn?.disabled) return;
@@ -140,7 +156,6 @@
       }, 30_000);
       s.style.display=''; s.textContent='Generating...'; v.classList.add('hidden');
       const fd=new FormData(e.target);
-      if(document.getElementById('lucky').value==='1') fd.set('lucky','1');
       try {
         const r=await fetch('/api/generate',{method:'POST',body:fd});
         const j=await r.json();
