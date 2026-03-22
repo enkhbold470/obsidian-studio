@@ -10,6 +10,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_file, send_from_directory, session
 from flask_cors import CORS
+from werkzeug.exceptions import RequestEntityTooLarge
 from openai import OpenAI
 
 from backend.brainrot import (
@@ -32,7 +33,8 @@ OUTPUTS = PROJECT_ROOT / "temp_build" / "outputs"
 BG_VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".webm"}
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024
+_max_upload_mb = int(os.environ.get("MAX_UPLOAD_MB", "256"))
+app.config["MAX_CONTENT_LENGTH"] = _max_upload_mb * 1024 * 1024
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or "dev-only-change-me"
 app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
 app.config.setdefault("SESSION_COOKIE_HTTPONLY", True)
@@ -43,6 +45,18 @@ CORS(
     resources={r"/api/*": {"origins": _cors_origins}},
     supports_credentials=True,
 )
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_request_entity_too_large(_e: RequestEntityTooLarge):
+    return jsonify(
+        {
+            "error": (
+                f"Upload too large (max {_max_upload_mb} MB). "
+                "Set MAX_UPLOAD_MB in the environment or use a smaller / more compressed video."
+            )
+        }
+    ), 413
 
 
 def skip_auth() -> bool:

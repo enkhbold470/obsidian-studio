@@ -39,5 +39,23 @@ export const postScript = (body: {
     body: JSON.stringify(body),
   }).then((r) => r.json());
 
-export const postGenerate = (form: FormData) =>
-  apiFetch("/api/generate", { method: "POST", body: form }).then((r) => r.json());
+export const postGenerate = async (form: FormData) => {
+  const r = await apiFetch("/api/generate", { method: "POST", body: form });
+  const raw = await r.text();
+  let data: { error?: string; file?: string; ok?: boolean };
+  try {
+    data = JSON.parse(raw) as typeof data;
+  } catch {
+    throw new Error(
+      r.status === 413
+        ? "Upload too large or blocked (413). Raise MAX_UPLOAD_MB / reverse-proxy body size, or use a smaller file."
+        : r.status === 401
+          ? "Unauthorized."
+          : `Bad response (${r.status}) — not JSON.`
+    );
+  }
+  if (!r.ok) {
+    throw new Error(data.error ?? `Request failed (${r.status})`);
+  }
+  return data;
+};
