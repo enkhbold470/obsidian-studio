@@ -1,8 +1,11 @@
 """Optional S3-compatible storage (e.g. MinIO) for rendered outputs and upload staging."""
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
+
+_log = logging.getLogger("brainrot.s3")
 
 _client = None
 
@@ -42,22 +45,35 @@ def _client_s3():
 
 def ensure_bucket() -> None:
     if not is_enabled():
+        print("[s3] ensure_bucket: S3_ENDPOINT_URL not set, skipping", flush=True)
         return
     s3 = _client_s3()
     b = _bucket()
+    ep = os.environ.get("S3_ENDPOINT_URL", "").strip()
+    print(f"[s3] ensure_bucket endpoint={ep!r} bucket={b!r}", flush=True)
     try:
         s3.head_bucket(Bucket=b)
+        print(f"[s3] head_bucket ok {b!r}", flush=True)
     except Exception:
         try:
             s3.create_bucket(Bucket=b)
-        except Exception:
+            print(f"[s3] create_bucket ok {b!r}", flush=True)
+        except Exception as e:
+            print(f"[s3] create_bucket raised {e!r}, trying head again …", flush=True)
+            _log.warning("create_bucket: %s", e)
             # MinIO may return BucketAlreadyOwnedByYou etc.
             s3.head_bucket(Bucket=b)
 
 
 def put_file(key: str, local_path: Path) -> None:
+    try:
+        sz = local_path.stat().st_size
+    except OSError:
+        sz = -1
+    print(f"[s3] put_file key={key!r} local_bytes={sz}", flush=True)
     s3 = _client_s3()
     s3.upload_file(str(local_path), _bucket(), key)
+    print(f"[s3] put_file done key={key!r}", flush=True)
 
 
 def delete_object(key: str) -> None:
@@ -66,9 +82,15 @@ def delete_object(key: str) -> None:
 
 
 def download_to_path(key: str, dest: Path) -> None:
+    print(f"[s3] download_to_path key={key!r} → {dest}", flush=True)
     s3 = _client_s3()
     dest.parent.mkdir(parents=True, exist_ok=True)
     s3.download_file(_bucket(), key, str(dest))
+    try:
+        dz = dest.stat().st_size
+    except OSError:
+        dz = -1
+    print(f"[s3] download_to_path done bytes={dz}", flush=True)
 
 
 def exists(key: str) -> bool:

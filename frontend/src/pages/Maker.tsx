@@ -281,6 +281,15 @@ export const Maker = () => {
     setFormError("");
     setVideoSrc(null);
     try {
+      const bgPart = fd.get("bg");
+      const bgMeta =
+        bgPart instanceof File
+          ? { name: bgPart.name, size: bgPart.size, type: bgPart.type }
+          : { savedId: String(fd.get("bg_saved_id") || "") };
+      console.info("[Maker] generate submit", {
+        ...bgMeta,
+        t: new Date().toISOString(),
+      });
       const data = await postGenerate(fd);
       if (data.error) {
         throw new Error(String(data.error));

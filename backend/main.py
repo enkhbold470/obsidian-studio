@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
+import time
+import traceback
 import uuid
 from functools import wraps
 from pathlib import Path
@@ -42,6 +45,20 @@ from backend.paths import PROJECT_ROOT
 from backend import s3_storage
 
 load_dotenv(PROJECT_ROOT / ".env")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    force=True,
+)
+_log = logging.getLogger("brainrot.api")
+
+
+def _gen_print(msg: str) -> None:
+    line = f"[generate] {msg}"
+    print(line, flush=True)
+    _log.info(msg)
+
 
 DIST_DIR = PROJECT_ROOT / "frontend" / "dist"
 BG_VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".webm"}
@@ -357,11 +374,19 @@ def api_history():
 @app.route("/api/generate", methods=["POST"])
 @require_login
 def api_generate():
+    t0 = time.perf_counter()
+    _gen_print(
+        f"start content_length={request.content_length!r} "
+        f"content_type={request.content_type!r} remote={request.remote_addr!r}"
+    )
     err = _require_s3()
     if err:
+        _gen_print("abort: S3 not configured")
         return err
     if not os.getenv("OPENAI_API_KEY"):
+        _gen_print("abort: OPENAI_API_KEY missing")
         return jsonify({"error": "OPENAI_API_KEY not set"}), 500
+    _gen_print(f"parsing multipart form (elapsed {time.perf_counter() - t0:.2f}s) …")
     data = request.form
     bg_saved_id = (data.get("bg_saved_id") or "").strip()
     bg = request.files.get("bg")
@@ -369,6 +394,8 @@ def api_generate():
         return jsonify({"error": "Choose either a saved background or a new upload, not both."}), 400
     if not bg_saved_id and not (bg and getattr(bg, "filename", None)):
         return jsonify({"error": "Upload a video or select a saved background."}), 400
+
+    _gen_print(f"multipart parsed (elapsed {time.perf_counter() - t0:.2f}s) bg_saved_id={bg_saved_id!r}")
 
     uid = str(uuid.uuid4())[:8]
     work_dir = PROJECT_ROOT / "temp_build" / uid
@@ -394,14 +421,22 @@ def api_generate():
         if ext not in BG_VIDEO_EXTS:
             ext = ".mp4"
         bg_path = work_dir / f"bg{ext}"
+        _gen_print(f"downloading saved bg from S3 key={row.storage_key!r} …")
         s3_storage.download_to_path(row.storage_key, bg_path)
+        _gen_print(f"saved bg on disk bytes={bg_path.stat().st_size} (elapsed {time.perf_counter() - t0:.2f}s)")
         bg_label = f"saved:{bg_saved_id}"
     else:
         upload_original_name = Path(bg.filename).name
         bg_path = work_dir / f"bg{Path(bg.filename).suffix}"
+        _gen_print(f"writing upload to disk {bg_path.name!r} …")
         bg.save(str(bg_path))
         uploaded_new_file = True
         bg_label = "upload"
+        try:
+            sz = bg_path.stat().st_size
+        except OSError:
+            sz = -1
+        _gen_print(f"upload saved bytes={sz} (elapsed {time.perf_counter() - t0:.2f}s)")
 
     out_ext = data.get("output_format", "mp4")
     out_path = work_dir / f"out.{out_ext}"
@@ -430,8 +465,14 @@ def api_generate():
     )
     out_key = f"outputs/{uid}_out.{out_ext}"
     try:
+        _gen_print(
+            f"run_pipeline begin job_uid={uid} user_id={uid_user!r} out_key={out_key!r} "
+            f"(elapsed {time.perf_counter() - t0:.2f}s)"
+        )
         run_pipeline(cfg, bg_path, out_path, OpenAI(), work_dir, PROJECT_ROOT)
+        _gen_print(f"run_pipeline done (elapsed {time.perf_counter() - t0:.2f}s), uploading output to S3 …")
         s3_storage.put_file(out_key, out_path)
+        _gen_print(f"output uploaded to S3 (elapsed {time.perf_counter() - t0:.2f}s)")
 
         if uploaded_new_file and uid_user is not None and bg_path and bg_path.is_file():
             bg_uuid = str(uuid.uuid4())
@@ -439,6 +480,7 @@ def api_generate():
             if uext not in BG_VIDEO_EXTS:
                 uext = ".mp4"
             ukey = f"users/{uid_user}/backgrounds/{bg_uuid}{uext}"
+            _gen_print(f"uploading background copy to library {ukey!r} …")
             s3_storage.put_file(ukey, bg_path)
             insert_user_background_record(
                 bg_uuid,
@@ -458,8 +500,13 @@ def api_generate():
             dialogue=dialogue,
             bg_source=bg_label,
         )
+        total_s = time.perf_counter() - t0
+        _gen_print(f"SUCCESS job_uid={uid} total_s={total_s:.2f}")
         return jsonify({"ok": True, "file": f"/api/output/{uid}"})
     except Exception as e:
+        _log.exception("generate failed: %s", e)
+        print(f"[generate] EXCEPTION after {time.perf_counter() - t0:.2f}s: {e!r}", flush=True)
+        print(traceback.format_exc(), flush=True)
         return jsonify({"error": str(e)}), 500
 
 
@@ -530,6 +577,19 @@ def _run_server() -> None:
     port = int(os.environ.get("PORT", "5001"))
     host = os.environ.get("HOST", "0.0.0.0")
     debug = os.environ.get("FLASK_DEBUG") == "1"
+    ep = (os.environ.get("S3_ENDPOINT_URL") or "").strip()
+    print(
+        f"[startup] host={host!r} port={port} MAX_UPLOAD_MB={_max_upload_mb} "
+        f"S3_ENDPOINT_URL={'set' if ep else 'unset'} S3_BUCKET={os.environ.get('S3_BUCKET', 'brainrot')!r}",
+        flush=True,
+    )
+    _log.info(
+        "listening host=%s port=%s max_upload_mb=%s s3=%s",
+        host,
+        port,
+        _max_upload_mb,
+        ep or "(disabled)",
+    )
     uvicorn.run(
         app,
         host=host,

@@ -137,15 +137,26 @@ export const postScript = async (body: {
 };
 
 export const postGenerate = async (form: FormData) => {
+  const t0 = performance.now();
+  console.info("[generate] POST /api/generate starting …");
   const r = await apiFetch("/api/generate", { method: "POST", body: form });
+  const elapsedMs = Math.round(performance.now() - t0);
+  console.info(
+    `[generate] response status=${r.status} ok=${r.ok} elapsed_ms=${elapsedMs} content_type=${r.headers.get("content-type")}`
+  );
   const raw = await r.text();
+  if (raw.length < 500) {
+    console.info("[generate] body preview:", raw.slice(0, 400));
+  } else {
+    console.info(`[generate] body length=${raw.length} (truncated log)`);
+  }
   let data: { error?: string; file?: string; ok?: boolean };
   try {
     data = JSON.parse(raw) as typeof data;
   } catch {
     const proxyTimeoutHint =
       r.status === 502 || r.status === 504
-        ? " The reverse proxy (e.g. Traefik) likely timed out: /api/generate can take several minutes (ffmpeg + TTS). Increase read/response timeouts for this route in Dokploy/Traefik (often 300s+)."
+        ? " Proxy timeout or bad gateway: (1) Large multipart uploads (e.g. 100MB+ bg) can take minutes — increase proxy read/body timeouts. (2) Long ffmpeg/TTS after upload — increase response timeouts (often 300–600s+). Check app container logs to see how far [generate] got."
         : "";
     throw new Error(
       r.status === 413

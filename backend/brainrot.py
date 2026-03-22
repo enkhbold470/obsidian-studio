@@ -2,15 +2,25 @@
 from __future__ import annotations
 
 import json
-import subprocess
-import zipfile
-import urllib.request
+import logging
 import shutil
+import subprocess
+import time
+import urllib.request
+import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from backend.paths import PROJECT_ROOT
+
+_log = logging.getLogger("brainrot.pipeline")
+
+
+def _pipe_print(msg: str) -> None:
+    print(f"[brainrot.pipeline] {msg}", flush=True)
+    _log.info(msg)
+
 
 FFMPEG_BIN = "ffmpeg"
 FFPROBE_BIN = "ffprobe"
@@ -131,31 +141,42 @@ def is_valid_dialogue(lines: Any) -> bool:
 
 
 def run_pipeline(cfg: Config, bg_path: Path, output_path: Path, client: Any, temp_dir: Path, project_root: Path | None = None) -> Path:
+    t0 = time.perf_counter()
+    _pipe_print(f"run_pipeline start bg={bg_path} out={output_path} temp_dir={temp_dir}")
     _ensure_ffmpeg()
+    _pipe_print(f"ffmpeg bins: {FFMPEG_BIN!r} {FFPROBE_BIN!r} ({time.perf_counter() - t0:.2f}s)")
     temp_dir.mkdir(parents=True, exist_ok=True)
 
     dialogue = list(cfg.dialogue) if cfg.dialogue else []
     if not dialogue:
         if not (cfg.topic or "").strip():
             raise ValueError("Provide dialogue JSON or a topic (CLI auto-writes script).")
+        _pipe_print("generating dialogue via LLM …")
         dialogue = generate_dialogue(client, (cfg.topic or "").strip(), cfg.dialogue_lines, cfg.gpt_model)
+        _pipe_print(f"LLM dialogue lines={len(dialogue)} ({time.perf_counter() - t0:.2f}s)")
+    else:
+        _pipe_print(f"using provided dialogue lines={len(dialogue)}")
 
     voices = {"Peter": cfg.peter_voice, "Stewie": cfg.stewie_voice}
     segments = []
     for i, line in enumerate(dialogue):
         sp, txt = line["speaker"], line["text"]
         fp = temp_dir / f"line_{i}.mp3"
+        _pipe_print(f"TTS line {i + 1}/{len(dialogue)} speaker={sp} …")
         client.audio.speech.create(model=cfg.tts_model, voice=voices.get(sp, "onyx"), input=txt).write_to_file(fp)
         segments.append({"file": fp, "speaker": sp, "duration": _get_duration(fp), "text": txt})
+    _pipe_print(f"TTS done ({time.perf_counter() - t0:.2f}s)")
 
     list_f = temp_dir / "concat.txt"
     list_f.write_text("\n".join(f"file '{s['file'].name}'" for s in segments))
     combined = temp_dir / "dialogue.mp3"
+    _pipe_print("ffmpeg concat audio …")
     subprocess.run([FFMPEG_BIN, "-y", "-f", "concat", "-safe", "0", "-i", str(list_f), "-c", "copy", str(combined)],
                   check=True, capture_output=True)
 
     if cfg.tts_speed != 1.0:
         sped = temp_dir / "dialogue_sped.mp3"
+        _pipe_print(f"ffmpeg atempo={cfg.tts_speed} …")
         subprocess.run([FFMPEG_BIN, "-y", "-i", str(combined), "-filter:a", f"atempo={cfg.tts_speed}", str(sped)],
                       check=True, capture_output=True)
         combined = sped
@@ -166,9 +187,11 @@ def run_pipeline(cfg: Config, bg_path: Path, output_path: Path, client: Any, tem
         timings.append({"speaker": s["speaker"], "start": total, "end": total + d})
         total += d
 
+    _pipe_print(f"Whisper transcription audio total_duration≈{total:.2f}s …")
     words = client.audio.transcriptions.create(file=open(combined, "rb"), model="whisper-1",
                                                response_format="verbose_json",
                                                timestamp_granularities=["word"]).words
+    _pipe_print(f"Whisper done words={len(words)} ({time.perf_counter() - t0:.2f}s)")
 
     pc, oc = _rgb_to_ass(cfg.text_color), _rgb_to_ass(cfg.outline_color)
     ass = temp_dir / "subs.ass"
@@ -222,8 +245,17 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         out = out.with_suffix(f".{cfg.output_format}")
 
     root = project_root or PROJECT_ROOT
+    _pipe_print(
+        f"final ffmpeg mux (-t {total:.2f}s) bg={bg_path} → {out} "
+        f"[libx264 preset=fast can take a long time on large bg videos] …"
+    )
     subprocess.run([FFMPEG_BIN, "-y", "-stream_loop", "-1", "-i", str(bg_path), "-i", str(_overlay_png(root, "peter.png")), "-i", str(_overlay_png(root, "stewie.png")), "-i", str(combined),
                     "-filter_complex", fc, "-map", "[v_out]", "-map", "[a_out]",
                     "-c:v", "libx264", "-preset", "fast", "-c:a", "aac", "-t", str(total), str(out)],
                    check=True, capture_output=True)
+    try:
+        out_sz = out.stat().st_size
+    except OSError:
+        out_sz = -1
+    _pipe_print(f"run_pipeline complete output_bytes={out_sz} total_s={time.perf_counter() - t0:.2f}")
     return out
