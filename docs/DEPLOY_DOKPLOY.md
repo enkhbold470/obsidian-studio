@@ -17,6 +17,7 @@ Goal: one **Dockerfile** service that builds the React app and runs Flask on a s
    | Name | Value |
    |------|--------|
    | `OPENAI_API_KEY` | Your key |
+   | `DATABASE_URL` | PostgreSQL URL (matches `db/schema.ts` / `db/migrations/`) |
    | `SECRET_KEY` | Long random string (session integrity) |
    | `PORT` | `5001` (or match EXPOSE) |
 
@@ -28,12 +29,12 @@ Goal: one **Dockerfile** service that builds the React app and runs Flask on a s
 
 | Container path | Purpose |
 |----------------|---------|
-| `/app/backend/instance` | SQLite file (`app.sqlite`) |
+| (Postgres volume or managed DB) | Users + generation history — point `DATABASE_URL` at it |
 | `/app/storage/public` | Background library (optional, if not in image) |
 | `/app/storage/uploads` | Upload cache |
-| `/app/temp_build/outputs` | Optional — keep last renders across restarts |
+| S3 / MinIO | Rendered videos when `S3_ENDPOINT_URL` is set |
 
-Without mounts, the database and uploads reset when the container is recreated.
+Without a persistent database and object storage, users and past renders are lost when containers are recreated.
 
 ## Health check
 

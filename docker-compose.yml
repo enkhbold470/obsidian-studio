@@ -1,0 +1,78 @@
+# Full stack: Postgres (Drizzle migrations) + MinIO (S3) + Flask (Vite build).
+# Required env: OPENAI_API_KEY (and optionally MAX_UPLOAD_MB).
+#
+#   export OPENAI_API_KEY=sk-... && docker compose up --build
+#
+# App: http://localhost:5001  |  MinIO console: http://localhost:9001  (minioadmin / minioadmin)
+# Postgres: localhost:5432  brainrot / brainrot
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: brainrot
+      POSTGRES_PASSWORD: brainrot
+      POSTGRES_DB: brainrot
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U brainrot -d brainrot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    restart: "no"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        i=0
+        while [ $$i -lt 90 ]; do
+          mc alias set local http://minio:9000 minioadmin minioadmin && break
+          sleep 1
+          i=$$((i+1))
+        done
+        mc mb local/brainrot --ignore-existing
+
+  app:
+    build: .
+    ports:
+      - "5001:5001"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY in the environment}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-256}
+      PORT: "5001"
+      SECRET_KEY: "docker-compose-brainrot-session-key"
+      DATABASE_URL: postgresql://brainrot:brainrot@postgres:5432/brainrot
+      S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      AWS_REGION: us-east-1
+      S3_BUCKET: brainrot
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+volumes:
+  pg_data:
+  minio_data:

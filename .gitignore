@@ -7,6 +7,7 @@ storage/uploads/
 assets/*.png
 venv/
 .venv/
+db/node_modules/
 __pycache__/
 30_sec_cuts/
 60_sec_cuts/

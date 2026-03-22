@@ -6,3 +6,24 @@
 html {
   overflow-y: scroll;
 }
+
+.dlg-scroll {
+  overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.dlg-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.dlg-scroll::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.dlg-scroll::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}

@@ -40,9 +40,9 @@ export const DialogueEditor = ({ lines, onChange }: DialogueEditorProps) => {
   return (
     <div className="space-y-2">
       <p className="text-sm text-gray-600">
-        All lines are visible below — scroll the page if the script is long.
+        Scroll inside the box — horizontal and vertical scrollbars stay visible when content overflows.
       </p>
-      <div className="space-y-2 border-2 border-black p-2">
+      <div className="dlg-scroll space-y-2 border-2 border-black p-2 min-h-[12rem] max-h-[min(50vh,28rem)]">
         {lines.map((line, index) => (
           <div key={index} className="flex gap-2 items-start">
             <label className="sr-only" htmlFor={`sp-${index}`}>

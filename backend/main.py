@@ -1,8 +1,9 @@
-"""Flask API + optional SPA static; SQLite auth."""
+"""Flask API + optional SPA static; Postgres auth + generation history."""
 from __future__ import annotations
 
 import json
 import os
+import shutil
 import uuid
 from functools import wraps
 from pathlib import Path
@@ -23,13 +24,26 @@ from backend.brainrot import (
     is_valid_dialogue,
     run_pipeline,
 )
-from backend.db import create_user, get_user_by_id, init_db, verify_user
-from backend.paths import PROJECT_ROOT, STORAGE_PUBLIC, STORAGE_UPLOADS
+from backend.db import (
+    create_user,
+    delete_user_background,
+    get_generation_by_job_uid,
+    get_user_background,
+    get_user_by_id,
+    init_db,
+    insert_generation,
+    insert_user_background_record,
+    list_generations_for_user,
+    list_user_backgrounds,
+    set_user_gallery_public,
+    verify_user,
+)
+from backend.paths import PROJECT_ROOT
+from backend import s3_storage
 
 load_dotenv(PROJECT_ROOT / ".env")
 
 DIST_DIR = PROJECT_ROOT / "frontend" / "dist"
-OUTPUTS = PROJECT_ROOT / "temp_build" / "outputs"
 BG_VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".webm"}
 
 app = Flask(__name__)
@@ -73,18 +87,17 @@ def require_login(fn):
     return wrapper
 
 
-def _resolve_bundled_bg(filename: str) -> Path | None:
-    if not filename or "/" in filename or "\\" in filename or filename.startswith("."):
-        return None
-    base = STORAGE_PUBLIC.resolve()
-    p = (STORAGE_PUBLIC / filename).resolve()
-    try:
-        p.relative_to(base)
-    except ValueError:
-        return None
-    if not p.is_file() or p.suffix.lower() not in BG_VIDEO_EXTS:
-        return None
-    return p
+def _require_s3():
+    if not s3_storage.is_enabled():
+        return (
+            jsonify(
+                {
+                    "error": "Object storage is not configured. Set S3_ENDPOINT_URL (e.g. run with Docker Compose + MinIO).",
+                }
+            ),
+            503,
+        )
+    return None
 
 
 @app.route("/api/auth/register", methods=["POST"])
@@ -97,7 +110,7 @@ def auth_register():
         return jsonify({"error": "Invalid email/password or email already registered."}), 400
     session["user_id"] = user.id
     session.permanent = True
-    return jsonify({"ok": True, "user": {"id": user.id, "email": user.email}})
+    return jsonify({"ok": True, "user": {"id": user.id, "email": user.email, "galleryPublic": user.gallery_public}})
 
 
 @app.route("/api/auth/login", methods=["POST"])
@@ -110,7 +123,7 @@ def auth_login():
         return jsonify({"error": "Invalid email or password."}), 401
     session["user_id"] = user.id
     session.permanent = True
-    return jsonify({"ok": True, "user": {"id": user.id, "email": user.email}})
+    return jsonify({"ok": True, "user": {"id": user.id, "email": user.email, "galleryPublic": user.gallery_public}})
 
 
 @app.route("/api/auth/logout", methods=["POST"])
@@ -130,7 +143,24 @@ def auth_me():
     if not user:
         session.clear()
         return jsonify({"user": None}), 200
-    return jsonify({"user": {"id": user.id, "email": user.email}})
+    return jsonify({"user": {"id": user.id, "email": user.email, "galleryPublic": user.gallery_public}})
+
+
+@app.route("/api/me", methods=["PATCH"])
+@require_login
+def api_me_patch():
+    if skip_auth():
+        return jsonify({"error": "Not available with SKIP_AUTH"}), 400
+    data = request.get_json(force=True, silent=True) or {}
+    uid = session.get("user_id")
+    if not uid:
+        return jsonify({"error": "Unauthorized"}), 401
+    if "galleryPublic" in data:
+        set_user_gallery_public(int(uid), bool(data["galleryPublic"]))
+    user = get_user_by_id(int(uid))
+    if not user:
+        return jsonify({"error": "not found"}), 404
+    return jsonify({"user": {"id": user.id, "email": user.email, "galleryPublic": user.gallery_public}})
 
 
 @app.route("/api/script", methods=["POST"])
@@ -153,17 +183,140 @@ def api_script():
     return jsonify({"dialogue": lines})
 
 
-@app.route("/api/backgrounds")
-def api_backgrounds():
-    STORAGE_PUBLIC.mkdir(parents=True, exist_ok=True)
-    files: list[str] = []
+@app.route("/api/backgrounds", methods=["GET"])
+@require_login
+def api_backgrounds_list():
+    if skip_auth():
+        return jsonify({"items": []})
+    err = _require_s3()
+    if err:
+        return err
+    uid = session.get("user_id")
+    if not uid:
+        return jsonify({"items": []})
+    rows = list_user_backgrounds(int(uid))
+    return jsonify(
+        {
+            "items": [
+                {
+                    "id": r.id,
+                    "filename": r.original_filename,
+                    "createdAt": r.created_at.isoformat(),
+                    "streamUrl": f"/api/backgrounds/{r.id}/stream",
+                }
+                for r in rows
+            ],
+        }
+    )
+
+
+@app.route("/api/backgrounds", methods=["POST"])
+@require_login
+def api_backgrounds_upload():
+    err = _require_s3()
+    if err:
+        return err
+    if skip_auth():
+        return jsonify({"error": "Upload requires a logged-in user."}), 400
+    uid = session.get("user_id")
+    if not uid:
+        return jsonify({"error": "Unauthorized"}), 401
+    f = request.files.get("file")
+    if not f or not getattr(f, "filename", None):
+        return jsonify({"error": "Missing file."}), 400
+    ext = Path(f.filename).suffix.lower()
+    if ext not in BG_VIDEO_EXTS:
+        return jsonify({"error": "Unsupported video type."}), 400
+    bg_uuid = str(uuid.uuid4())
+    key = f"users/{int(uid)}/backgrounds/{bg_uuid}{ext}"
+    tmp = PROJECT_ROOT / "temp_build" / f"up_{bg_uuid}{ext}"
+    tmp.parent.mkdir(parents=True, exist_ok=True)
+    f.save(str(tmp))
     try:
-        for p in sorted(STORAGE_PUBLIC.iterdir()):
-            if p.is_file() and p.suffix.lower() in BG_VIDEO_EXTS:
-                files.append(p.name)
-    except OSError:
-        pass
-    return jsonify({"files": files, "storage": "storage/public"})
+        s3_storage.put_file(key, tmp)
+    finally:
+        tmp.unlink(missing_ok=True)
+    insert_user_background_record(bg_uuid, int(uid), key, Path(f.filename).name)
+    return jsonify(
+        {
+            "item": {
+                "id": bg_uuid,
+                "filename": Path(f.filename).name,
+                "streamUrl": f"/api/backgrounds/{bg_uuid}/stream",
+            }
+        }
+    )
+
+
+@app.route("/api/backgrounds/<bg_id>/stream")
+@require_login
+def api_background_stream(bg_id):
+    err = _require_s3()
+    if err:
+        return err
+    if skip_auth():
+        return jsonify({"error": "Unauthorized"}), 401
+    uid = session.get("user_id")
+    if not uid:
+        return jsonify({"error": "Unauthorized"}), 401
+    row = get_user_background(int(uid), bg_id)
+    if not row:
+        return jsonify({"error": "not found"}), 404
+    ext = Path(row.original_filename).suffix.lower().lstrip(".") or "mp4"
+    if ext not in ("mp4", "mov", "webm", "mkv"):
+        ext = "mp4"
+    mt = f"video/{ext}" if ext != "mov" else "video/quicktime"
+    return s3_storage.response_for_key(row.storage_key, row.original_filename, mimetype=mt)
+
+
+@app.route("/api/backgrounds/<bg_id>", methods=["DELETE"])
+@require_login
+def api_backgrounds_delete(bg_id):
+    err = _require_s3()
+    if err:
+        return err
+    if skip_auth():
+        return jsonify({"error": "Not available with SKIP_AUTH"}), 400
+    uid = session.get("user_id")
+    if not uid:
+        return jsonify({"error": "Unauthorized"}), 401
+    row = get_user_background(int(uid), bg_id)
+    if not row:
+        return jsonify({"error": "not found"}), 404
+    s3_storage.delete_object(row.storage_key)
+    delete_user_background(int(uid), bg_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/users/<int:user_id>/renders")
+def api_user_renders(user_id):
+    target = get_user_by_id(user_id)
+    if not target:
+        return jsonify({"error": "not found"}), 404
+    viewer = session.get("user_id")
+    if viewer is not None and int(viewer) == user_id:
+        rows = list_generations_for_user(user_id)
+    elif target.gallery_public:
+        rows = list_generations_for_user(user_id)
+    else:
+        return jsonify({"error": "Forbidden"}), 403
+    return jsonify(
+        {
+            "items": [
+                {
+                    "id": r.id,
+                    "jobUid": r.job_uid,
+                    "topic": r.topic,
+                    "outputFormat": r.output_format,
+                    "bgSource": r.bg_source,
+                    "createdAt": r.created_at.isoformat(),
+                    "watchUrl": f"/u/{user_id}/renders/{r.job_uid}",
+                }
+                for r in rows
+            ],
+            "galleryPublic": target.gallery_public,
+        }
+    )
 
 
 @app.route("/api/options")
@@ -176,29 +329,82 @@ def api_options():
     })
 
 
+@app.route("/api/history")
+@require_login
+def api_history():
+    if skip_auth():
+        return jsonify({"items": []})
+    sid = session.get("user_id")
+    if not sid:
+        return jsonify({"items": []})
+    rows = list_generations_for_user(int(sid))
+    return jsonify({
+        "items": [
+            {
+                "id": r.id,
+                "jobUid": r.job_uid,
+                "topic": r.topic,
+                "outputFormat": r.output_format,
+                "bgSource": r.bg_source,
+                "createdAt": r.created_at.isoformat(),
+                "watchUrl": f"/u/{int(sid)}/renders/{r.job_uid}",
+            }
+            for r in rows
+        ],
+    })
+
+
 @app.route("/api/generate", methods=["POST"])
 @require_login
 def api_generate():
+    err = _require_s3()
+    if err:
+        return err
     if not os.getenv("OPENAI_API_KEY"):
         return jsonify({"error": "OPENAI_API_KEY not set"}), 500
     data = request.form
-    bundled = (data.get("bg_bundled") or "").strip()
+    bg_saved_id = (data.get("bg_saved_id") or "").strip()
     bg = request.files.get("bg")
+    if bg_saved_id and bg and getattr(bg, "filename", None):
+        return jsonify({"error": "Choose either a saved background or a new upload, not both."}), 400
+    if not bg_saved_id and not (bg and getattr(bg, "filename", None)):
+        return jsonify({"error": "Upload a video or select a saved background."}), 400
+
     uid = str(uuid.uuid4())[:8]
-    STORAGE_UPLOADS.mkdir(parents=True, exist_ok=True)
-    OUTPUTS.mkdir(parents=True, exist_ok=True)
+    work_dir = PROJECT_ROOT / "temp_build" / uid
+    work_dir.mkdir(parents=True, exist_ok=True)
+
+    sid = session.get("user_id")
+    uid_user = int(sid) if sid is not None and not skip_auth() else None
+    if skip_auth():
+        uid_user = None
+
     bg_path: Path | None = None
-    if bg and getattr(bg, "filename", None):
-        bg_path = STORAGE_UPLOADS / f"{uid}_bg{Path(bg.filename).suffix}"
-        bg.save(bg_path)
-    elif bundled:
-        bg_path = _resolve_bundled_bg(bundled)
-        if not bg_path:
-            return jsonify({"error": "Invalid or missing bundled background file."}), 400
-    if bg_path is None:
-        return jsonify({"error": "Choose a storage video or upload a background file."}), 400
+    bg_label = "upload"
+    uploaded_new_file = False
+    upload_original_name = ""
+
+    if bg_saved_id:
+        if uid_user is None:
+            return jsonify({"error": "Saved backgrounds require login."}), 400
+        row = get_user_background(uid_user, bg_saved_id)
+        if not row:
+            return jsonify({"error": "Invalid saved background."}), 400
+        ext = Path(row.original_filename).suffix.lower() or ".mp4"
+        if ext not in BG_VIDEO_EXTS:
+            ext = ".mp4"
+        bg_path = work_dir / f"bg{ext}"
+        s3_storage.download_to_path(row.storage_key, bg_path)
+        bg_label = f"saved:{bg_saved_id}"
+    else:
+        upload_original_name = Path(bg.filename).name
+        bg_path = work_dir / f"bg{Path(bg.filename).suffix}"
+        bg.save(str(bg_path))
+        uploaded_new_file = True
+        bg_label = "upload"
+
     out_ext = data.get("output_format", "mp4")
-    out_path = OUTPUTS / f"{uid}_out.{out_ext}"
+    out_path = work_dir / f"out.{out_ext}"
     dialogue_raw = data.get("dialogue", "[]")
     try:
         dialogue = json.loads(dialogue_raw) if dialogue_raw else []
@@ -211,7 +417,7 @@ def api_generate():
         dialogue=dialogue,
         dialogue_lines=int(data.get("dialogue_lines", 8)),
         tts_speed=float(data.get("tts_speed", 1.2)),
-        shake_speed=float(data.get("shake_speed", 15)),
+        shake_speed=float(data.get("shake_speed", 10)),
         font_name=data.get("font_name", "Arial"),
         font_size=int(data.get("font_size", 100)),
         text_color=data.get("text_color", "#FDE047"),
@@ -222,21 +428,67 @@ def api_generate():
         gpt_model=data.get("gpt_model", "gpt-5.4"),
         output_format=out_ext,
     )
+    out_key = f"outputs/{uid}_out.{out_ext}"
     try:
-        run_pipeline(cfg, bg_path, out_path, OpenAI(), PROJECT_ROOT / "temp_build" / uid, PROJECT_ROOT)
+        run_pipeline(cfg, bg_path, out_path, OpenAI(), work_dir, PROJECT_ROOT)
+        s3_storage.put_file(out_key, out_path)
+
+        if uploaded_new_file and uid_user is not None and bg_path and bg_path.is_file():
+            bg_uuid = str(uuid.uuid4())
+            uext = Path(upload_original_name).suffix.lower()
+            if uext not in BG_VIDEO_EXTS:
+                uext = ".mp4"
+            ukey = f"users/{uid_user}/backgrounds/{bg_uuid}{uext}"
+            s3_storage.put_file(ukey, bg_path)
+            insert_user_background_record(
+                bg_uuid,
+                uid_user,
+                ukey,
+                upload_original_name,
+            )
+            bg_label = f"upload+library:{bg_uuid}"
+
+        shutil.rmtree(work_dir, ignore_errors=True)
+        insert_generation(
+            user_id=uid_user,
+            job_uid=uid,
+            output_key=out_key,
+            output_format=out_ext,
+            topic=(data.get("topic", "") or "").strip(),
+            dialogue=dialogue,
+            bg_source=bg_label,
+        )
         return jsonify({"ok": True, "file": f"/api/output/{uid}"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/output/<uid>")
-@require_login
 def api_output(uid):
-    for ext in ["mp4", "mkv"]:
-        p = OUTPUTS / f"{uid}_out.{ext}"
-        if p.exists():
-            return send_file(p, mimetype=f"video/{ext}", download_name=f"brainrot.{ext}")
-    return jsonify({"error": "not found"}), 404
+    err = _require_s3()
+    if err:
+        return err
+    gen = get_generation_by_job_uid(uid)
+    if not gen or not gen.user_id:
+        return jsonify({"error": "not found"}), 404
+    owner_id = gen.user_id
+    if skip_auth():
+        allow = True
+    else:
+        sid = session.get("user_id")
+        if sid is not None and int(sid) == owner_id:
+            allow = True
+        else:
+            owner = get_user_by_id(owner_id)
+            allow = owner is not None and owner.gallery_public
+    if not allow:
+        return jsonify({"error": "not found"}), 404
+    ext = (gen.output_format or "mp4").lower().lstrip(".")
+    if ext not in ("mp4", "mkv"):
+        ext = "mp4"
+    mimetype = f"video/{ext}"
+    name = f"brainrot.{ext}"
+    return s3_storage.response_for_key(gen.output_key, name, mimetype=mimetype)
 
 
 def _serve_spa(path: str):
@@ -268,6 +520,7 @@ def spa(path):
 
 
 init_db()
+s3_storage.ensure_bucket()
 
 
 if __name__ == "__main__":

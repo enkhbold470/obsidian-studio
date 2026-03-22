@@ -4,6 +4,7 @@
 
 - Python 3.12+ with `uv` or `pip`
 - Bun (or Node + npm) for the frontend
+- PostgreSQL 16+ (local install or `docker compose up postgres` only)
 - `OPENAI_API_KEY` in `.env` at the **repository root** (same level as `app.py`)
 
 ## Environment variables
@@ -11,6 +12,7 @@
 | Variable | Purpose |
 |----------|---------|
 | `OPENAI_API_KEY` | Required for script draft, TTS, Whisper. |
+| `DATABASE_URL` | PostgreSQL connection string (required for the web API). |
 | `SECRET_KEY` | Flask session signing (required in any shared or production environment). |
 | `PORT` | HTTP port (default `5001`). |
 | `CORS_ORIGINS` | Comma-separated list; default includes Vite dev URLs. |
@@ -19,12 +21,14 @@
 
 ## Backend
 
-From the repo root:
+From the repo root (set `DATABASE_URL`, e.g. `postgresql://brainrot:brainrot@localhost:5432/brainrot`):
 
 ```bash
 uv pip install -r requirements.txt
 uv run python -m backend.main
 ```
+
+Schema changes: edit `db/schema.ts`, then `cd db && bun install && bun run generate` and apply new SQL under `db/migrations/` (Flask runs migrations from that folder on startup).
 
 API: `http://127.0.0.1:5001/api/options`
 

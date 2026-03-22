@@ -1,4 +1,4 @@
-# Single image: Vite build + Flask API + static SPA
+# Vite build → Flask + static SPA. Runtime needs: backend, db migrations, assets, ffmpeg.
 FROM oven/bun:1 AS frontend
 WORKDIR /build/frontend
 COPY frontend/package.json ./
@@ -17,17 +17,15 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend ./backend
-COPY app.py ./
-COPY docs ./docs
-COPY docs_rules ./docs_rules
-COPY storage ./storage
+COPY db ./db
 COPY assets ./assets
+
+RUN mkdir -p storage/public storage/uploads temp_build
 
 COPY --from=frontend /build/frontend/dist ./frontend/dist
 
 ENV PORT=5001
 ENV PYTHONUNBUFFERED=1
-
 EXPOSE 5001
 
 CMD ["python", "-m", "backend.main"]

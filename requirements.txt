@@ -2,3 +2,5 @@ openai
 python-dotenv
 flask
 flask-cors
+boto3
+psycopg[binary]>=3.2

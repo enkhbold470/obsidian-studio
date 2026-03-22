@@ -58,7 +58,7 @@ class Config:
     dialogue: list[dict[str, str]] = field(default_factory=list)
     dialogue_lines: int = 8
     tts_speed: float = 1.2
-    shake_speed: float = 15
+    shake_speed: float = 10
     font_name: str = "Arial Black"
     font_size: int = 100
     text_color: str = "#FDE047"
