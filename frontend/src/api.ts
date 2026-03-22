@@ -143,12 +143,16 @@ export const postGenerate = async (form: FormData) => {
   try {
     data = JSON.parse(raw) as typeof data;
   } catch {
+    const proxyTimeoutHint =
+      r.status === 502 || r.status === 504
+        ? " The reverse proxy (e.g. Traefik) likely timed out: /api/generate can take several minutes (ffmpeg + TTS). Increase read/response timeouts for this route in Dokploy/Traefik (often 300s+)."
+        : "";
     throw new Error(
       r.status === 413
         ? "Upload too large or blocked (413). Raise MAX_UPLOAD_MB / reverse-proxy body size, or use a smaller file."
         : r.status === 401
           ? "Unauthorized."
-          : `Bad response (${r.status}) — not JSON.`
+          : `Bad response (${r.status}) — not JSON (proxy returned HTML).${proxyTimeoutHint}`
     );
   }
   if (!r.ok) {
