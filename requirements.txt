@@ -4,3 +4,4 @@ flask
 flask-cors
 boto3
 psycopg[binary]>=3.2
+uvicorn[standard]>=0.30

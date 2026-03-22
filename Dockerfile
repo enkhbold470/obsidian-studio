@@ -25,7 +25,9 @@ RUN mkdir -p storage/public storage/uploads temp_build
 COPY --from=frontend /build/frontend/dist ./frontend/dist
 
 ENV PORT=5001
+ENV HOST=0.0.0.0
 ENV PYTHONUNBUFFERED=1
 EXPOSE 5001
 
+# Uvicorn WSGI (Flask) — same as `python -m backend.main`
 CMD ["python", "-m", "backend.main"]

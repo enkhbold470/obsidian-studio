@@ -523,6 +523,24 @@ init_db()
 s3_storage.ensure_bucket()
 
 
-if __name__ == "__main__":
+def _run_server() -> None:
+    """Production entry: uvicorn (WSGI) on 0.0.0.0 — works behind Traefik/Dokploy."""
+    import uvicorn
+
     port = int(os.environ.get("PORT", "5001"))
-    app.run(host="0.0.0.0", port=port, debug=os.environ.get("FLASK_DEBUG") == "1")
+    host = os.environ.get("HOST", "0.0.0.0")
+    debug = os.environ.get("FLASK_DEBUG") == "1"
+    uvicorn.run(
+        app,
+        host=host,
+        port=port,
+        interface="wsgi",
+        log_level="debug" if debug else "info",
+        access_log=True,
+        proxy_headers=True,
+        forwarded_allow_ips="*",
+    )
+
+
+if __name__ == "__main__":
+    _run_server()
