@@ -307,7 +307,7 @@ export const Maker = () => {
   return (
     <div className="max-w-3xl mx-auto p-4">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-black pb-2 mb-6">
-        <h1 className="text-2xl font-bold">Brainrot Maker</h1>
+        <h1 className="text-2xl font-bold">ReelMaker</h1>
         <div className="flex items-center gap-3 text-sm">
           {user ? (
             <>
