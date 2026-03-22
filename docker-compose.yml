@@ -3,7 +3,7 @@
 #
 #   export OPENAI_API_KEY=sk-... && docker compose up --build
 #
-# App: http://localhost:5001  |  MinIO console: http://localhost:9001  (minioadmin / minioadmin)
+# App: http://localhost:5001  |  MinIO API :9000, console :9001 (minioadmin / minioadmin), published on 0.0.0.0
 # Postgres: localhost:5432  brainrot / brainrot
 
 services:
@@ -23,17 +23,18 @@ services:
       timeout: 5s
       retries: 10
 
+  # S3 API :9000; web console :9001 — publish both on 0.0.0.0 (Traefik: use 9001 for MinIO UI, 9000 for API)
   minio:
     image: minio/minio:latest
-    command: server /data --console-address ":9001"
+    command: server /data --address ":9000" --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     volumes:
       - minio_data:/data
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "0.0.0.0:9000:9000"
+      - "0.0.0.0:9001:9001"
 
   minio-init:
     image: minio/mc:latest
@@ -60,6 +61,7 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY in the environment}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-256}
       PORT: "5001"
+      HOST: "0.0.0.0"
       SECRET_KEY: "docker-compose-brainrot-session-key"
       DATABASE_URL: postgresql://brainrot:brainrot@postgres:5432/brainrot
       S3_ENDPOINT_URL: http://minio:9000
