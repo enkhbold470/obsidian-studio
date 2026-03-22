@@ -17,7 +17,7 @@ Goal: one **Dockerfile** service that builds the React app and runs Flask on a s
    | Name | Value |
    |------|--------|
    | `OPENAI_API_KEY` | Your key |
-   | `DATABASE_URL` | PostgreSQL URL (matches `db/schema.ts` / `db/migrations/`) |
+   | `DATABASE_URL` | PostgreSQL URL (Alembic migrations in `alembic/versions/`) |
    | `SECRET_KEY` | Long random string (session integrity) |
    | `PORT` | `5001` (or match EXPOSE) |
 

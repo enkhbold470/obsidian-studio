@@ -12,6 +12,10 @@ from functools import wraps
 from pathlib import Path
 
 from dotenv import load_dotenv
+from backend.paths import PROJECT_ROOT
+
+load_dotenv(PROJECT_ROOT / ".env")
+
 from flask import Flask, jsonify, request, send_file, send_from_directory, session
 from flask_cors import CORS
 from werkzeug.exceptions import RequestEntityTooLarge
@@ -41,10 +45,8 @@ from backend.db import (
     set_user_gallery_public,
     verify_user,
 )
-from backend.paths import PROJECT_ROOT
 from backend import s3_storage
-
-load_dotenv(PROJECT_ROOT / ".env")
+from backend import thumbnail
 
 logging.basicConfig(
     level=logging.INFO,
@@ -220,6 +222,7 @@ def api_backgrounds_list():
                     "filename": r.original_filename,
                     "createdAt": r.created_at.isoformat(),
                     "streamUrl": f"/api/backgrounds/{r.id}/stream",
+                    "thumbUrl": f"/api/backgrounds/{r.id}/thumb",
                 }
                 for r in rows
             ],
@@ -249,10 +252,14 @@ def api_backgrounds_upload():
     tmp = PROJECT_ROOT / "temp_build" / f"up_{bg_uuid}{ext}"
     tmp.parent.mkdir(parents=True, exist_ok=True)
     f.save(str(tmp))
+    thumb_local = tmp.with_suffix(".thumb.jpg")
     try:
         s3_storage.put_file(key, tmp)
+        if thumbnail.extract_video_thumbnail_jpg(tmp, thumb_local):
+            s3_storage.put_file(thumbnail.thumb_key_for_video_key(key), thumb_local)
     finally:
         tmp.unlink(missing_ok=True)
+        thumb_local.unlink(missing_ok=True)
     insert_user_background_record(bg_uuid, int(uid), key, Path(f.filename).name)
     return jsonify(
         {
@@ -260,6 +267,7 @@ def api_backgrounds_upload():
                 "id": bg_uuid,
                 "filename": Path(f.filename).name,
                 "streamUrl": f"/api/backgrounds/{bg_uuid}/stream",
+                "thumbUrl": f"/api/backgrounds/{bg_uuid}/thumb",
             }
         }
     )
@@ -286,6 +294,26 @@ def api_background_stream(bg_id):
     return s3_storage.response_for_key(row.storage_key, row.original_filename, mimetype=mt)
 
 
+@app.route("/api/backgrounds/<bg_id>/thumb")
+@require_login
+def api_background_thumb(bg_id):
+    err = _require_s3()
+    if err:
+        return err
+    if skip_auth():
+        return jsonify({"error": "Unauthorized"}), 401
+    uid = session.get("user_id")
+    if not uid:
+        return jsonify({"error": "Unauthorized"}), 401
+    row = get_user_background(int(uid), bg_id)
+    if not row:
+        return jsonify({"error": "not found"}), 404
+    tkey = thumbnail.thumb_key_for_video_key(row.storage_key)
+    if not s3_storage.exists(tkey):
+        return jsonify({"error": "not found"}), 404
+    return s3_storage.response_for_key(tkey, "thumb.jpg", mimetype="image/jpeg")
+
+
 @app.route("/api/backgrounds/<bg_id>", methods=["DELETE"])
 @require_login
 def api_backgrounds_delete(bg_id):
@@ -301,6 +329,9 @@ def api_backgrounds_delete(bg_id):
     if not row:
         return jsonify({"error": "not found"}), 404
     s3_storage.delete_object(row.storage_key)
+    tk = thumbnail.thumb_key_for_video_key(row.storage_key)
+    if s3_storage.exists(tk):
+        s3_storage.delete_object(tk)
     delete_user_background(int(uid), bg_id)
     return jsonify({"ok": True})
 
@@ -482,6 +513,9 @@ def api_generate():
             ukey = f"users/{uid_user}/backgrounds/{bg_uuid}{uext}"
             _gen_print(f"uploading background copy to library {ukey!r} …")
             s3_storage.put_file(ukey, bg_path)
+            lib_thumb = work_dir / f"lib_thumb_{bg_uuid}.jpg"
+            if thumbnail.extract_video_thumbnail_jpg(bg_path, lib_thumb):
+                s3_storage.put_file(thumbnail.thumb_key_for_video_key(ukey), lib_thumb)
             insert_user_background_record(
                 bg_uuid,
                 uid_user,

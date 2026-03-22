@@ -1,4 +1,4 @@
-# Vite build → Flask + static SPA. Runtime needs: backend, db migrations, assets, ffmpeg.
+# Vite build → Flask + static SPA. Runtime needs: backend, Alembic, assets, ffmpeg.
 FROM oven/bun:1 AS frontend
 WORKDIR /build/frontend
 COPY frontend/package.json ./
@@ -17,7 +17,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend ./backend
-COPY db ./db
+COPY alembic.ini .
+COPY alembic ./alembic
 COPY assets ./assets
 
 RUN mkdir -p storage/public storage/uploads temp_build

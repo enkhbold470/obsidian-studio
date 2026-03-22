@@ -8,9 +8,11 @@ import {
   getOptions,
   logout,
   postGenerate,
+  postGenerateWithProgress,
   postScript,
-  uploadBackground,
+  uploadBackgroundWithProgress,
 } from "../api";
+import { BgPreview } from "../components/BgPreview";
 import {
   DialogueEditor,
   isValidDialogue,
@@ -74,6 +76,8 @@ export const Maker = () => {
   const [draftLoading, setDraftLoading] = useState(false);
   const [genLoading, setGenLoading] = useState(false);
   const [genProgress, setGenProgress] = useState(0);
+  const [libraryUploadPct, setLibraryUploadPct] = useState<number | null>(null);
+  const [genUploadPct, setGenUploadPct] = useState<number | null>(null);
   const genTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refreshBackgrounds = useCallback(() => {
@@ -140,6 +144,14 @@ export const Maker = () => {
       }
       return;
     }
+    if (genUploadPct !== null && genUploadPct < 100) {
+      setGenProgress(0);
+      if (genTimerRef.current) {
+        clearInterval(genTimerRef.current);
+        genTimerRef.current = null;
+      }
+      return;
+    }
     const start = Date.now();
     genTimerRef.current = setInterval(() => {
       const elapsed = (Date.now() - start) / 1000;
@@ -155,7 +167,7 @@ export const Maker = () => {
         genTimerRef.current = null;
       }
     };
-  }, [genLoading]);
+  }, [genLoading, genUploadPct]);
 
   const handleLogout = async () => {
     await logout();
@@ -230,11 +242,16 @@ export const Maker = () => {
       return;
     }
     setFormError("");
+    setLibraryUploadPct(0);
     try {
-      await uploadBackground(f);
+      await uploadBackgroundWithProgress(f, (loaded, total) => {
+        setLibraryUploadPct(Math.min(100, Math.round((loaded / total) * 100)));
+      });
       refreshBackgrounds();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setLibraryUploadPct(null);
     }
     e.target.value = "";
   };
@@ -276,12 +293,14 @@ export const Maker = () => {
     if (!fd) {
       return;
     }
+    const bgPart = fd.get("bg");
+    const useUploadProgress = bgPart instanceof File;
     setGenLoading(true);
     setGenProgress(0);
+    setGenUploadPct(useUploadProgress ? 0 : null);
     setFormError("");
     setVideoSrc(null);
     try {
-      const bgPart = fd.get("bg");
       const bgMeta =
         bgPart instanceof File
           ? { name: bgPart.name, size: bgPart.size, type: bgPart.type }
@@ -290,7 +309,11 @@ export const Maker = () => {
         ...bgMeta,
         t: new Date().toISOString(),
       });
-      const data = await postGenerate(fd);
+      const data = useUploadProgress
+        ? await postGenerateWithProgress(fd, (loaded, total) => {
+            setGenUploadPct(Math.min(100, Math.round((loaded / total) * 100)));
+          })
+        : await postGenerate(fd);
       if (data.error) {
         throw new Error(String(data.error));
       }
@@ -302,6 +325,7 @@ export const Maker = () => {
       setFormError(err instanceof Error ? err.message : "failed");
     } finally {
       setGenLoading(false);
+      setGenUploadPct(null);
       setTimeout(() => setGenProgress(0), 400);
     }
   };
@@ -414,13 +438,7 @@ export const Maker = () => {
                   className="block w-full text-left"
                 >
                   <div className="aspect-video bg-black">
-                    <video
-                      className="w-full h-full object-cover pointer-events-none"
-                      src={b.streamUrl}
-                      muted
-                      playsInline
-                      preload="metadata"
-                    />
+                    <BgPreview item={b} />
                   </div>
                   <p className="text-xs p-1 truncate font-mono">{b.filename}</p>
                 </button>
@@ -450,11 +468,27 @@ export const Maker = () => {
             <label className="block text-sm font-bold" htmlFor="lib-upload">
               Add to library only
             </label>
+            {libraryUploadPct !== null ? (
+              <div
+                className="mb-2 h-2 w-full border border-black bg-gray-200"
+                role="progressbar"
+                aria-valuenow={libraryUploadPct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Library upload progress"
+              >
+                <div
+                  className="h-full bg-black transition-[width] duration-150"
+                  style={{ width: `${libraryUploadPct}%` }}
+                />
+              </div>
+            ) : null}
             <input
               id="lib-upload"
               type="file"
               accept="video/*"
               onChange={handleUploadToLibrary}
+              disabled={libraryUploadPct !== null}
               className="w-full border-2 border-dashed border-gray-400 p-2 text-sm"
             />
           </div>
@@ -623,6 +657,29 @@ export const Maker = () => {
           </div>
         </div>
 
+        {genUploadPct !== null ? (
+          <div className="mb-2">
+            <p className="text-xs font-bold text-gray-700">
+              {genUploadPct < 100
+                ? `Uploading background… ${genUploadPct}%`
+                : "Upload complete — rendering on server…"}
+            </p>
+            <div
+              className="mt-1 h-2 w-full border border-black bg-gray-200"
+              role="progressbar"
+              aria-valuenow={genUploadPct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Generate upload progress"
+            >
+              <div
+                className="h-full bg-gray-700 transition-[width] duration-150"
+                style={{ width: `${genUploadPct}%` }}
+              />
+            </div>
+          </div>
+        ) : null}
+
         <div className="relative overflow-hidden border-2 border-black">
           <button
             type="submit"
@@ -637,7 +694,7 @@ export const Maker = () => {
               "Generate video"
             )}
           </button>
-          {genLoading ? (
+          {genLoading && (genUploadPct === null || genUploadPct >= 100) ? (
             <div
               className="absolute left-0 top-0 h-full bg-white/25 transition-[width] duration-150"
               style={{ width: `${genProgress}%` }}

@@ -1,4 +1,4 @@
-# Full stack: Postgres (Drizzle migrations) + MinIO (S3) + Flask (Vite build).
+# Full stack: Postgres (Alembic) + MinIO (S3) + Flask (Vite build).
 # Required env: OPENAI_API_KEY (and optionally MAX_UPLOAD_MB).
 #
 #   export OPENAI_API_KEY=sk-... && docker compose up --build

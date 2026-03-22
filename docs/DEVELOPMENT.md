@@ -28,7 +28,7 @@ uv pip install -r requirements.txt
 uv run python -m backend.main
 ```
 
-Schema changes: edit `db/schema.ts`, then `cd db && bun install && bun run generate` and apply new SQL under `db/migrations/` (Flask runs migrations from that folder on startup).
+Schema changes: edit SQLAlchemy models in `backend/db/models.py`, then `alembic revision --autogenerate -m "describe"` (or hand-write a revision), and apply with `alembic upgrade head` or rely on app startup (`init_db()` runs Alembic to `head`).
 
 API: `http://127.0.0.1:5001/api/options`
 
