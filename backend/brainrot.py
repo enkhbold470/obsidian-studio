@@ -232,13 +232,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     ass_path = str(ass).replace("\\", "/").replace(":", "\\:")
     # 9:16 @ 1080×1920 to match ASS PlayRes; center-crop any aspect (e.g. 16:9 → vertical strip).
     # Looped input + -t total ensures background covers full dialogue when clip is shorter than audio.
+    # Audio: TTS dialogue only (background video is silent — no mix with [0:a]).
     fc = f"""[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1[bg];
 [1:v]scale=300:-1[p];[2:v]scale=200:-1[s];
 [bg][p]overlay=x='{"+".join(px) or "-w"}':y='{"+".join(py) or "-h"}':enable='{"+".join(pe) or "0"}'[v1];
 [v1][s]overlay=x='{"+".join(sx) or "-w"}':y='{"+".join(sy) or "-h"}':enable='{"+".join(se) or "0"}'[v2];
 [v2]ass='{ass_path}'[v_out];
-[0:a]volume=0.1[a_bg];[3:a]volume=1.0[a_dialogue];
-[a_bg][a_dialogue]amix=inputs=2:duration=shortest:dropout_transition=2[a_out]"""
+[3:a]anull[a_out]"""
 
     out = Path(output_path)
     if out.suffix.lower() != f".{cfg.output_format}":
