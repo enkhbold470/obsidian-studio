@@ -22,10 +22,12 @@ from werkzeug.exceptions import RequestEntityTooLarge
 from backend.brainrot import (
     ASS_FONTS,
     Config,
-    GPT_MODELS,
-    TTS_MODELS,
-    TTS_VOICES,
     generate_dialogue,
+    get_default_gpt_model,
+    get_default_peter_voice,
+    get_default_stewie_voice,
+    get_default_tts_model,
+    get_dynamic_options_cached,
     get_llm_client,
     get_tts_client,
     is_valid_dialogue,
@@ -192,7 +194,7 @@ def api_script():
     if len(topic) < 10:
         return jsonify({"error": "Topic must be at least 10 characters."}), 400
     lines_n = int(data.get("dialogue_lines", 8))
-    gpt_model = data.get("gpt_model", "gpt-5.4")
+    gpt_model = data.get("gpt_model", get_default_gpt_model())
     try:
         lines = generate_dialogue(get_llm_client(), topic, lines_n, gpt_model)
     except Exception as e:
@@ -359,6 +361,7 @@ def api_user_renders(user_id):
                     "bgSource": r.bg_source,
                     "createdAt": r.created_at.isoformat(),
                     "elapsedSeconds": r.elapsed_seconds,
+                    "renderMeta": r.render_meta,
                     "watchUrl": f"/u/{user_id}/renders/{r.job_uid}",
                 }
                 for r in rows
@@ -370,10 +373,11 @@ def api_user_renders(user_id):
 
 @app.route("/api/options")
 def api_options():
+    opts = get_dynamic_options_cached()
     return jsonify({
-        "tts_voices": TTS_VOICES,
-        "tts_models": TTS_MODELS,
-        "gpt_models": GPT_MODELS,
+        "tts_voices": opts.get("tts_voices") or [],
+        "tts_models": opts.get("tts_models") or [],
+        "gpt_models": opts.get("gpt_models") or [],
         "fonts": ASS_FONTS,
     })
 
@@ -397,6 +401,7 @@ def api_history():
                 "bgSource": r.bg_source,
                 "createdAt": r.created_at.isoformat(),
                 "elapsedSeconds": r.elapsed_seconds,
+                "renderMeta": r.render_meta,
                 "watchUrl": f"/u/{int(sid)}/renders/{r.job_uid}",
             }
             for r in rows
@@ -490,10 +495,10 @@ def api_generate():
         font_size=int(data.get("font_size", 100)),
         text_color=data.get("text_color", "#FDE047"),
         outline_color=data.get("outline_color", "#000000"),
-        peter_voice=data.get("peter_voice", "am_michael"),
-        stewie_voice=data.get("stewie_voice", "bm_george*0.7+af_bella*0.3"),
-        tts_model=data.get("tts_model", "kokoro"),
-        gpt_model=data.get("gpt_model", "gpt-5.4"),
+        peter_voice=data.get("peter_voice", get_default_peter_voice()),
+        stewie_voice=data.get("stewie_voice", get_default_stewie_voice()),
+        tts_model=data.get("tts_model", get_default_tts_model()),
+        gpt_model=data.get("gpt_model", get_default_gpt_model()),
         output_format=out_ext,
     )
     out_key = f"outputs/{uid}_out.{out_ext}"
@@ -528,6 +533,24 @@ def api_generate():
 
         shutil.rmtree(work_dir, ignore_errors=True)
         total_s = time.perf_counter() - t0
+        render_meta = {
+            "topic": (data.get("topic", "") or "").strip(),
+            "dialogue_lines": int(data.get("dialogue_lines", 8)),
+            "tts_speed": float(data.get("tts_speed", 1.2)),
+            "shake_speed": float(data.get("shake_speed", 10)),
+            "font_name": data.get("font_name", "Arial"),
+            "font_size": int(data.get("font_size", 100)),
+            "text_color": data.get("text_color", "#FDE047"),
+            "outline_color": data.get("outline_color", "#000000"),
+            "peter_voice": data.get("peter_voice", get_default_peter_voice()),
+            "stewie_voice": data.get("stewie_voice", get_default_stewie_voice()),
+            "tts_model": data.get("tts_model", get_default_tts_model()),
+            "gpt_model": data.get("gpt_model", get_default_gpt_model()),
+            "output_format": out_ext,
+            "bg_source": bg_label,
+            "dialogue": dialogue,
+            "elapsed_seconds": total_s,
+        }
         insert_generation(
             user_id=uid_user,
             job_uid=uid,
@@ -537,6 +560,7 @@ def api_generate():
             dialogue=dialogue,
             bg_source=bg_label,
             elapsed_seconds=total_s,
+            render_meta=render_meta,
         )
         _gen_print(f"SUCCESS job_uid={uid} total_s={total_s:.2f}")
         return jsonify({"ok": True, "file": f"/api/output/{uid}", "elapsedSeconds": total_s})

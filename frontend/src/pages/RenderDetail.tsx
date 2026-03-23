@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
-import type { AuthUser } from "../api";
+import type { AuthUser, RenderMeta } from "../api";
 import { getMe, getUserRenders } from "../api";
 import { formatElapsedSeconds } from "../formatElapsed";
 
@@ -11,6 +11,7 @@ export const RenderDetail = () => {
   const [skipAuth, setSkipAuth] = useState(false);
   const [topic, setTopic] = useState<string | null>(null);
   const [elapsedSec, setElapsedSec] = useState<number | null>(null);
+  const [renderMeta, setRenderMeta] = useState<RenderMeta | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
@@ -39,6 +40,7 @@ export const RenderDetail = () => {
         setTopic(hit.topic);
         const es = hit.elapsedSeconds;
         setElapsedSec(typeof es === "number" && Number.isFinite(es) ? es : null);
+        setRenderMeta(hit.renderMeta ?? null);
         setNotFound(false);
         setForbidden(false);
       })
@@ -100,6 +102,95 @@ export const RenderDetail = () => {
         <p className="text-sm text-gray-600 mb-2">
           Render time: <span className="font-semibold">{formatElapsedSeconds(elapsedSec)}</span>
         </p>
+      ) : null}
+      {renderMeta ? (
+        <details className="mb-4 border-2 border-black p-3 bg-gray-50">
+          <summary className="cursor-pointer font-bold">Saved settings &amp; script</summary>
+          <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            {renderMeta.gpt_model ? (
+              <>
+                <dt className="text-gray-600">AI model</dt>
+                <dd className="font-mono">{renderMeta.gpt_model}</dd>
+              </>
+            ) : null}
+            {renderMeta.tts_model ? (
+              <>
+                <dt className="text-gray-600">TTS model</dt>
+                <dd className="font-mono">{renderMeta.tts_model}</dd>
+              </>
+            ) : null}
+            {renderMeta.peter_voice ? (
+              <>
+                <dt className="text-gray-600">Peter voice</dt>
+                <dd className="font-mono break-all">{renderMeta.peter_voice}</dd>
+              </>
+            ) : null}
+            {renderMeta.stewie_voice ? (
+              <>
+                <dt className="text-gray-600">Stewie voice</dt>
+                <dd className="font-mono break-all">{renderMeta.stewie_voice}</dd>
+              </>
+            ) : null}
+            {renderMeta.tts_speed != null ? (
+              <>
+                <dt className="text-gray-600">TTS speed</dt>
+                <dd>{renderMeta.tts_speed}</dd>
+              </>
+            ) : null}
+            {renderMeta.shake_speed != null ? (
+              <>
+                <dt className="text-gray-600">Shake</dt>
+                <dd>{renderMeta.shake_speed}</dd>
+              </>
+            ) : null}
+            {renderMeta.font_name ? (
+              <>
+                <dt className="text-gray-600">Font</dt>
+                <dd>
+                  {renderMeta.font_name} {renderMeta.font_size != null ? `(${renderMeta.font_size}px)` : ""}
+                </dd>
+              </>
+            ) : null}
+            {renderMeta.text_color ? (
+              <>
+                <dt className="text-gray-600">Colors</dt>
+                <dd className="font-mono text-xs">
+                  text {renderMeta.text_color} / outline {renderMeta.outline_color ?? "—"}
+                </dd>
+              </>
+            ) : null}
+            {renderMeta.dialogue_lines != null ? (
+              <>
+                <dt className="text-gray-600">Draft line count</dt>
+                <dd>{renderMeta.dialogue_lines}</dd>
+              </>
+            ) : null}
+            {renderMeta.bg_source ? (
+              <>
+                <dt className="text-gray-600">Background</dt>
+                <dd className="font-mono text-xs break-all">{renderMeta.bg_source}</dd>
+              </>
+            ) : null}
+            {renderMeta.elapsed_seconds != null ? (
+              <>
+                <dt className="text-gray-600">Elapsed (saved)</dt>
+                <dd>{formatElapsedSeconds(renderMeta.elapsed_seconds)}</dd>
+              </>
+            ) : null}
+          </dl>
+          {renderMeta.dialogue?.length ? (
+            <div className="mt-3 border-t border-gray-300 pt-2">
+              <p className="font-bold text-sm mb-1">Script</p>
+              <ul className="text-sm space-y-1 max-h-48 overflow-y-auto">
+                {renderMeta.dialogue.map((line, i) => (
+                  <li key={i}>
+                    <span className="font-semibold">{line.speaker}:</span> {line.text}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </details>
       ) : null}
       <p className="text-sm text-gray-600 mb-4">
         Share this page:{" "}

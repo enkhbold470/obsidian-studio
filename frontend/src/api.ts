@@ -123,6 +123,26 @@ export const deleteBackground = async (id: string) => {
   }
 };
 
+/** Snapshot saved with each generation (settings + script + timing). */
+export type RenderMeta = {
+  topic?: string;
+  dialogue_lines?: number;
+  tts_speed?: number;
+  shake_speed?: number;
+  font_name?: string;
+  font_size?: number;
+  text_color?: string;
+  outline_color?: string;
+  peter_voice?: string;
+  stewie_voice?: string;
+  tts_model?: string;
+  gpt_model?: string;
+  output_format?: string;
+  bg_source?: string;
+  dialogue?: { speaker: string; text: string }[];
+  elapsed_seconds?: number;
+};
+
 export type HistoryItem = {
   id: string;
   jobUid: string;
@@ -132,6 +152,7 @@ export type HistoryItem = {
   createdAt: string;
   /** Server-side seconds from upload through render + upload (null for legacy rows). */
   elapsedSeconds?: number | null;
+  renderMeta?: RenderMeta | null;
   watchUrl: string;
 };
 

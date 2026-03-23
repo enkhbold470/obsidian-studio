@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ReelMaker - Renders Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-tertiary": "#690939",
+              "secondary-container": "#006875",
+              "on-secondary-fixed-variant": "#005964",
+              "on-secondary": "#004d57",
+              "surface": "#0e0e0e",
+              "tertiary-container": "#fb81ae",
+              "outline": "#767575",
+              "on-error": "#490013",
+              "inverse-surface": "#fcf9f8",
+              "on-primary-container": "#280072",
+              "secondary-fixed": "#26e6ff",
+              "surface-variant": "#262626",
+              "on-surface": "#ffffff",
+              "on-tertiary-container": "#59002e",
+              "surface-tint": "#b6a0ff",
+              "secondary": "#00e3fd",
+              "surface-container-lowest": "#000000",
+              "primary-fixed": "#a98fff",
+              "on-primary-fixed-variant": "#32008a",
+              "on-primary": "#340090",
+              "on-tertiary-fixed": "#37001a",
+              "on-secondary-container": "#e8fbff",
+              "error-dim": "#d73357",
+              "on-tertiary-fixed-variant": "#70103e",
+              "error": "#ff6e84",
+              "on-secondary-fixed": "#003a42",
+              "on-background": "#ffffff",
+              "tertiary-fixed-dim": "#f57ca9",
+              "on-error-container": "#ffb2b9",
+              "primary-container": "#a98fff",
+              "surface-container-highest": "#262626",
+              "primary-fixed-dim": "#9c7eff",
+              "tertiary-fixed": "#ff8db6",
+              "tertiary-dim": "#ee77a3",
+              "error-container": "#a70138",
+              "inverse-primary": "#6834eb",
+              "secondary-fixed-dim": "#00d7f0",
+              "surface-container-low": "#131313",
+              "on-surface-variant": "#adaaaa",
+              "primary-dim": "#7e51ff",
+              "outline-variant": "#484847",
+              "inverse-on-surface": "#565555",
+              "on-primary-fixed": "#000000",
+              "primary": "#b6a0ff",
+              "surface-bright": "#2c2c2c",
+              "tertiary": "#ff96bb",
+              "surface-dim": "#0e0e0e",
+              "secondary-dim": "#00d4ec",
+              "background": "#0e0e0e",
+              "surface-container-high": "#20201f",
+              "surface-container": "#1a1a1a"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3 { font-family: 'Manrope', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface selection:bg-primary/30">
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 right-0 z-50 bg-[#0e0e0e] border-b border-outline-variant/15">
+<div class="flex justify-between items-center w-full px-6 py-4 max-w-full">
+<div class="flex items-center gap-8">
+<span class="text-2xl font-bold tracking-tight text-[#b6a0ff]">ReelMaker</span>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-[#adaaaa] hover:text-white transition-colors" href="#">Editor</a>
+<a class="text-[#b6a0ff] border-b-2 border-[#b6a0ff] pb-1" href="#">Dashboard</a>
+<a class="text-[#adaaaa] hover:text-white transition-colors" href="#">Gallery</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-[#adaaaa] hover:bg-[#262626] rounded-full transition-all active:scale-95 duration-150">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<div class="w-10 h-10 rounded-full bg-surface-container-highest overflow-hidden border border-outline-variant/30">
+<img alt="User profile avatar" class="w-full h-full object-cover" data-alt="Close up of a professional user avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA4trSbGLTs_fLP9E5ToIsFSq8nJJMIG00nlyyan77wC7j1jY9-nV97Ctrp8PMeTuZZT_3M4OlSXPYaYWlFTycxccUbRB7NWki8hPzG0jz92bsdKImGd3VYLjeOEAIbM4h93vw_S4EjGtYzBqwq8gJrujDvgJa7JNvHk7ZcECXjsMu3pfb78wXaMyN4gGR1ZNcekDCQSs5ZWAtVG6VNKBawdx3lnfr5sov9Z6GFL_v3Y0KoU7p-WcWKzGR1W_Cpe9lh9PwObFMWImn0"/>
+</div>
+</div>
+</div>
+</header>
+<!-- SideNavBar (Hidden on small screens) -->
+<aside class="hidden md:flex fixed left-0 top-0 h-full w-64 bg-[#131313] flex-col py-8 border-r border-[#484847]/15 z-40 mt-[72px]">
+<div class="px-6 mb-10">
+<div class="flex items-center gap-3 mb-8">
+<div class="w-8 h-8 rounded bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-sm" data-icon="diamond" style="font-variation-settings: 'FILL' 1;">diamond</span>
+</div>
+<div>
+<h2 class="text-lg font-black text-white leading-none">Obsidian Studio</h2>
+<p class="text-[10px] font-bold uppercase tracking-widest text-primary mt-1">Premium Tier</p>
+</div>
+</div>
+<button class="w-full py-3 bg-primary text-on-primary font-bold rounded-lg flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+                Generate New
+            </button>
+</div>
+<nav class="flex-1 px-4 space-y-2">
+<a class="flex items-center gap-3 text-[#adaaaa] px-4 py-3 hover:bg-[#262626] hover:text-white rounded-lg transition-all group" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="movie_edit">movie_edit</span>
+<span class="text-xs font-bold uppercase tracking-wider">Video Editor</span>
+</a>
+<a class="flex items-center gap-3 bg-[#1a1a1a] text-[#00e3fd] rounded-lg px-4 py-3 shadow-[0_0_10px_rgba(0,227,253,0.1)] translate-x-1 transition-transform group" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="dashboard">dashboard</span>
+<span class="text-xs font-bold uppercase tracking-wider">Renders Dashboard</span>
+</a>
+</nav>
+<div class="px-4 mt-auto space-y-2 border-t border-outline-variant/15 pt-6">
+<a class="flex items-center gap-3 text-[#adaaaa] px-4 py-2 hover:bg-[#262626] hover:text-white rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="settings">settings</span>
+<span class="text-xs font-bold uppercase tracking-wider">Settings</span>
+</a>
+<a class="flex items-center gap-3 text-[#adaaaa] px-4 py-2 hover:bg-[#262626] hover:text-white rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="logout">logout</span>
+<span class="text-xs font-bold uppercase tracking-wider">Log out</span>
+</a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="md:ml-64 pt-[88px] min-h-screen px-6 md:px-12 pb-20">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+<div>
+<h1 class="text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-2">Your renders</h1>
+<div class="flex items-center gap-4 text-on-surface-variant">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="person">person</span>
+<span class="text-sm font-medium">User #1</span>
+</div>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="public">public</span>
+<span class="text-sm">Public gallery info:</span>
+<a class="text-secondary hover:underline font-medium" href="#">Maker</a>
+</div>
+</div>
+</div>
+<div class="flex gap-3">
+<div class="bg-surface-container rounded-xl p-1 flex">
+<button class="px-4 py-2 bg-surface-container-highest text-white rounded-lg text-sm font-bold">List</button>
+<button class="px-4 py-2 text-on-surface-variant hover:text-white rounded-lg text-sm font-bold transition-colors">Grid</button>
+</div>
+</div>
+</div>
+<!-- Render List: Bento-inspired layout -->
+<div class="space-y-4 max-w-6xl">
+<!-- Item 1 -->
+<div class="group relative overflow-hidden bg-surface-container-low hover:bg-surface-container transition-all duration-300 rounded-xl border border-transparent hover:border-outline-variant/30 flex flex-col md:flex-row items-center gap-6 p-4">
+<div class="w-full md:w-48 h-28 rounded-lg overflow-hidden bg-surface-container-highest flex-shrink-0 relative">
+<img alt="Render Preview" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Vibrant healthy food and vegetables background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuATDY0zBc4OZGoHdtHlCM_K-do2unFnEmNpMLHB2_0zeZU-3aMzGJ_UEPFP_Ea5ZM9THm1EEboSzRHVGu7pMysmwdEwKSeNy1WJca0hUhnaySPuSnz-fbmdpnKqfSLdN_0ZcWiPD8UMAyisMp6-yEKh6Pe7VMbHsoY-Jqop0TzOcIQ2Uc4YxKt7KrLGap0INJkIS8i5kqDO2UzsXmad_T5j_eBoFj05zIaEI8Wgbbl9S6TpD_osGTsf5gmgEyXeg1WcOBOKk2GCMKCi"/>
+<div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-white text-3xl" data-icon="play_circle" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<h3 class="text-xl font-bold text-white mb-1 truncate">becoming vegetarian from heavy meat eater</h3>
+<div class="flex items-center gap-4 text-xs text-on-surface-variant font-medium">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]" data-icon="calendar_today">calendar_today</span> 3/22/2026</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]" data-icon="schedule">schedule</span> 1:25:19 AM</span>
+<span class="px-2 py-0.5 rounded bg-secondary/10 text-secondary border border-secondary/20 uppercase tracking-tighter">HD Render</span>
+</div>
+</div>
+<div class="flex items-center gap-2 pr-4">
+<button class="p-3 bg-surface-container-highest hover:bg-primary hover:text-on-primary rounded-full transition-all active:scale-90">
+<span class="material-symbols-outlined" data-icon="download">download</span>
+</button>
+<button class="p-3 bg-surface-container-highest hover:bg-surface-bright rounded-full transition-all">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="group relative overflow-hidden bg-surface-container-low hover:bg-surface-container transition-all duration-300 rounded-xl border border-transparent hover:border-outline-variant/30 flex flex-col md:flex-row items-center gap-6 p-4">
+<div class="w-full md:w-48 h-28 rounded-lg overflow-hidden bg-surface-container-highest flex-shrink-0 relative">
+<img alt="Render Preview" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Futuristic glowing AI brain circuit visualization" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAwBFpAhqP5TjzhaQ4VL2zv5DL8AA5hlLFTR1DoFX8xht8ENuHCXu1qCW6uRz-p5Hcp5-R7ZsKKqhE9EL4UIvfutB5s0g9GfJ85ajOqNGabnJTMud65y-1BMoz3V5P3QfmywXeYIq5lw0bNoh_UiKwFwM-BS6ZAI_eTMLnDX5r9L6C0O-D9YpQE4hNpAYPVuVd18E-Y2pSZFVlP7MYjlgSVQf67FI4zCdZ6isTnIerksElfadhnRbGaaEoZAYSuYtInhSxcprsIh2lr"/>
+<div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-white text-3xl" data-icon="play_circle" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<h3 class="text-xl font-bold text-white mb-1 truncate">what the heck is aistudio</h3>
+<div class="flex items-center gap-4 text-xs text-on-surface-variant font-medium">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]" data-icon="calendar_today">calendar_today</span> 3/22/2026</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]" data-icon="schedule">schedule</span> 1:06:53 AM</span>
+<span class="px-2 py-0.5 rounded bg-outline-variant/20 text-on-surface-variant uppercase tracking-tighter">Draft</span>
+</div>
+</div>
+<div class="flex items-center gap-2 pr-4">
+<button class="p-3 bg-surface-container-highest hover:bg-primary hover:text-on-primary rounded-full transition-all active:scale-90">
+<span class="material-symbols-outlined" data-icon="download">download</span>
+</button>
+<button class="p-3 bg-surface-container-highest hover:bg-surface-bright rounded-full transition-all">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="group relative overflow-hidden bg-surface-container-low hover:bg-surface-container transition-all duration-300 rounded-xl border border-transparent hover:border-outline-variant/30 flex flex-col md:flex-row items-center gap-6 p-4">
+<div class="w-full md:w-48 h-28 rounded-lg overflow-hidden bg-surface-container-highest flex-shrink-0 relative">
+<img alt="Render Preview" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Moody cinematic portrait silhouette in shadows" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCTKlIHcoBu9EFDE19gr0a3zXW7PaPnkAanwlXF3_IkNObatVATpQw1vx3DtQpDDgyY7uhWzbBygynjgFfLugMDJGbUeO-7yFgYgOK6aaNZkONwo4BtiOu0Z-rZqme2oaQIHTW4o-aSRX92DBvvAzQ5slx8QM6da70RLvD3gMpbDardbkPDw3KZJVJkzPWyGg13BDUgnq2GZSt0HxjWifvkK5tk1QPyoWQxGACgy7d686yBvcjEYvNWwHJymadL3WV2oIW66tDZLheD"/>
+<div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-white text-3xl" data-icon="play_circle" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<h3 class="text-xl font-bold text-white mb-1 truncate">who the hell is Inky Ganbold</h3>
+<div class="flex items-center gap-4 text-xs text-on-surface-variant font-medium">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]" data-icon="calendar_today">calendar_today</span> 3/22/2026</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]" data-icon="schedule">schedule</span> 12:56:08 AM</span>
+<span class="px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 uppercase tracking-tighter">Finished</span>
+</div>
+</div>
+<div class="flex items-center gap-2 pr-4">
+<button class="p-3 bg-surface-container-highest hover:bg-primary hover:text-on-primary rounded-full transition-all active:scale-90">
+<span class="material-symbols-outlined" data-icon="download">download</span>
+</button>
+<button class="p-3 bg-surface-container-highest hover:bg-surface-bright rounded-full transition-all">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Item 4 -->
+<div class="group relative overflow-hidden bg-surface-container-low hover:bg-surface-container transition-all duration-300 rounded-xl border border-transparent hover:border-outline-variant/30 flex flex-col md:flex-row items-center gap-6 p-4">
+<div class="w-full md:w-48 h-28 rounded-lg overflow-hidden bg-surface-container-highest flex-shrink-0 relative">
+<img alt="Render Preview" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Paper texture with pen and handwritten scripts" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDlc2QG4iaD0e4YGNSn1_yV-0rf4WcCKwAoyaEeZfwNOPDSS9rNi_LqRrznorPGJgQbNa3oXjX_tWM0FM4brF-AqW5-PLZnl0rdBIkLaazg6Cy7vqlkhOv7TidpJmgdtQodURqo5u6yNYlnAs-m-0_br8TuRmBNN2wcFQFzUvM9DOyRq7wpHCkECcLzOWGsAPDDLtJfzC5-CtujD4Hs2SDzvqtRINIqELmHpRfzc71aotztH6WKUSar1AMqK6_hmQiJ4GkU8HiLWYLH"/>
+<div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-white text-3xl" data-icon="play_circle" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<h3 class="text-xl font-bold text-white mb-1 truncate">AI script draft</h3>
+<div class="flex items-center gap-4 text-xs text-on-surface-variant font-medium">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]" data-icon="calendar_today">calendar_today</span> 3/21/2026</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]" data-icon="schedule">schedule</span> 11:41:26 PM</span>
+<span class="px-2 py-0.5 rounded bg-tertiary/10 text-tertiary border border-tertiary/20 uppercase tracking-tighter">Reviewing</span>
+</div>
+</div>
+<div class="flex items-center gap-2 pr-4">
+<button class="p-3 bg-surface-container-highest hover:bg-primary hover:text-on-primary rounded-full transition-all active:scale-90">
+<span class="material-symbols-outlined" data-icon="download">download</span>
+</button>
+<button class="p-3 bg-surface-container-highest hover:bg-surface-bright rounded-full transition-all">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Empty State Footer (Subtle) -->
+<div class="mt-16 flex flex-col items-center justify-center text-center max-w-6xl">
+<div class="h-px w-full bg-gradient-to-r from-transparent via-outline-variant/30 to-transparent mb-12"></div>
+<p class="text-on-surface-variant text-sm mb-4">Viewing your last 4 renders from this month.</p>
+<button class="px-6 py-2 border border-outline-variant/30 hover:border-primary/50 text-white rounded-full transition-all font-medium text-sm">
+                Load older renders
+            </button>
+</div>
+</main>
+<!-- Bottom Nav for Mobile -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 bg-surface-container-low border-t border-outline-variant/15 flex justify-around items-center py-3 z-50">
+<button class="flex flex-col items-center gap-1 text-[#00e3fd]">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="text-[10px] font-bold uppercase">Renders</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-[#adaaaa]">
+<span class="material-symbols-outlined" data-icon="movie_edit">movie_edit</span>
+<span class="text-[10px] font-bold uppercase">Editor</span>
+</button>
+<div class="relative -top-6">
+<button class="w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg shadow-primary/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl" data-icon="add">add</span>
+</button>
+</div>
+<button class="flex flex-col items-center gap-1 text-[#adaaaa]">
+<span class="material-symbols-outlined" data-icon="gallery_thumbnail">gallery_thumbnail</span>
+<span class="text-[10px] font-bold uppercase">Gallery</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-[#adaaaa]">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="text-[10px] font-bold uppercase">Settings</span>
+</button>
+</nav>
+</body></html>

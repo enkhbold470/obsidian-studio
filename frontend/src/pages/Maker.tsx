@@ -61,7 +61,7 @@ export const Maker = () => {
   const [outlineColor, setOutlineColor] = useState("#000000");
   const [peterVoice, setPeterVoice] = useState("am_michael");
   const [stewieVoice, setStewieVoice] = useState("bm_george*0.7+af_bella*0.3");
-  const [gptModel, setGptModel] = useState("gpt-5.4");
+  const [gptModel, setGptModel] = useState("gpt-4o");
   const [ttsModel, setTtsModel] = useState("kokoro");
 
   const [options, setOptions] = useState<OptionsPayload | null>(null);
@@ -130,6 +130,17 @@ export const Maker = () => {
       setOptions(o);
       if (o.gpt_models?.length && !o.gpt_models.includes(gptModel)) {
         setGptModel(o.gpt_models[0]);
+      }
+      if (o.tts_models?.length && !o.tts_models.includes(ttsModel)) {
+        setTtsModel(o.tts_models[0]);
+      }
+      if (o.tts_voices?.length) {
+        if (!o.tts_voices.includes(peterVoice)) {
+          setPeterVoice(o.tts_voices[0]);
+        }
+        if (!o.tts_voices.includes(stewieVoice)) {
+          setStewieVoice(o.tts_voices[Math.min(1, o.tts_voices.length - 1)]);
+        }
       }
     });
   }, []);
@@ -377,6 +388,22 @@ export const Maker = () => {
 
       <form className="space-y-6" onSubmit={handleGenerate}>
         <div>
+          <label className="block font-bold">AI model (draft script)</label>
+          <select
+            name="gpt_model"
+            value={gptModel}
+            onChange={(e) => setGptModel(e.target.value)}
+            className="w-full border-2 border-black p-2"
+          >
+            {(options?.gpt_models ?? [gptModel]).map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+          <p className="text-sm text-gray-600 mt-1">Used for “Draft script with AI” only.</p>
+        </div>
+        <div>
           <label className="block font-bold">Topic (for AI script draft)</label>
           <textarea
             name="topic"
@@ -391,7 +418,6 @@ export const Maker = () => {
             subs + mux.
           </p>
         </div>
-
         <div>
           <label className="block font-bold">Dialogue lines (AI draft)</label>
           <input
@@ -631,21 +657,7 @@ export const Maker = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block font-bold">GPT model</label>
-            <select
-              name="gpt_model"
-              value={gptModel}
-              onChange={(e) => setGptModel(e.target.value)}
-              className="w-full border-2 border-black p-2"
-            >
-              {(options?.gpt_models ?? [gptModel]).map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </div>
+          
           <div>
             <label className="block font-bold">TTS model</label>
             <select

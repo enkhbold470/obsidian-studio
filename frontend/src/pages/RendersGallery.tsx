@@ -145,6 +145,11 @@ export const RendersGallery = () => {
                     Render: <span className="font-semibold">{formatElapsedSeconds(h.elapsedSeconds)}</span>
                   </p>
                 ) : null}
+                {h.renderMeta?.gpt_model || h.renderMeta?.tts_model ? (
+                  <p className="text-gray-500 text-xs mt-0.5 font-mono truncate" title={[h.renderMeta?.gpt_model, h.renderMeta?.tts_model].filter(Boolean).join(" · ")}>
+                    {[h.renderMeta?.gpt_model, h.renderMeta?.tts_model].filter(Boolean).join(" · ")}
+                  </p>
+                ) : null}
               </div>
             </Link>
           ))}

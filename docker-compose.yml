@@ -1,5 +1,5 @@
 # Full stack: Postgres (Alembic) + MinIO (S3) + Flask (Vite build).
-# Required env: OPENAI_API_KEY (and optionally MAX_UPLOAD_MB).
+# Required env: OPENAI_API_KEY (and optionally OPENAI_BASE_URL, MAX_UPLOAD_MB).
 #
 #   export OPENAI_API_KEY=sk-... && docker compose up --build
 #
@@ -59,6 +59,7 @@ services:
       - "5001:5001"
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY in the environment}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.dedaluslabs.ai/v1}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-256}
       PORT: "5001"
       HOST: "0.0.0.0"

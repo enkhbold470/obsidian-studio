@@ -77,5 +77,6 @@ class Generation(Base):
         server_default=text("now()"), nullable=False
     )
     elapsed_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    render_meta: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     user: Mapped["User | None"] = relationship(back_populates="generations")

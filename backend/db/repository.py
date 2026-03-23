@@ -45,6 +45,7 @@ class Generation:
     bg_source: str | None
     created_at: datetime
     elapsed_seconds: float | None
+    render_meta: dict[str, Any] | None
 
 
 def init_db() -> None:
@@ -63,6 +64,7 @@ def _bg_from_row(r: BgRow) -> UserBackground:
 
 def _gen_from_row(r: GenRow) -> Generation:
     d = r.dialogue if isinstance(r.dialogue, list) else []
+    meta = r.render_meta if isinstance(getattr(r, "render_meta", None), dict) else None
     return Generation(
         id=str(r.id),
         user_id=r.user_id,
@@ -74,6 +76,7 @@ def _gen_from_row(r: GenRow) -> Generation:
         bg_source=r.bg_source,
         created_at=r.created_at,
         elapsed_seconds=getattr(r, "elapsed_seconds", None),
+        render_meta=meta,
     )
 
 
@@ -180,6 +183,7 @@ def insert_generation(
     dialogue: list[dict[str, Any]],
     bg_source: str | None,
     elapsed_seconds: float | None = None,
+    render_meta: dict[str, Any] | None = None,
 ) -> None:
     now = datetime.now(timezone.utc)
     with SessionLocal() as session:
@@ -194,6 +198,7 @@ def insert_generation(
                 bg_source=bg_source,
                 created_at=now,
                 elapsed_seconds=elapsed_seconds,
+                render_meta=render_meta,
             )
         )
         session.commit()
