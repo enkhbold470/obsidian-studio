@@ -130,6 +130,8 @@ export type HistoryItem = {
   outputFormat: string;
   bgSource: string | null;
   createdAt: string;
+  /** Server-side seconds from upload through render + upload (null for legacy rows). */
+  elapsedSeconds?: number | null;
   watchUrl: string;
 };
 
@@ -213,7 +215,7 @@ export const postGenerate = async (form: FormData) => {
   } else {
     console.info(`[generate] body length=${raw.length} (truncated log)`);
   }
-  let data: { error?: string; file?: string; ok?: boolean };
+  let data: { error?: string; file?: string; ok?: boolean; elapsedSeconds?: number };
   try {
     data = JSON.parse(raw) as typeof data;
   } catch {
@@ -232,7 +234,8 @@ export const postGenerateWithProgress = async (
 ) => {
   const t0 = performance.now();
   console.info("[generate] POST /api/generate (XHR) starting …");
-  return new Promise<{ error?: string; file?: string; ok?: boolean }>((resolve, reject) => {
+  return new Promise<{ error?: string; file?: string; ok?: boolean; elapsedSeconds?: number }>(
+    (resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/generate");
     xhr.withCredentials = true;
@@ -250,7 +253,7 @@ export const postGenerateWithProgress = async (
       if (raw.length < 500) {
         console.info("[generate] body preview:", raw.slice(0, 400));
       }
-      let data: { error?: string; file?: string; ok?: boolean };
+      let data: { error?: string; file?: string; ok?: boolean; elapsedSeconds?: number };
       try {
         data = JSON.parse(raw) as typeof data;
       } catch {

@@ -44,6 +44,7 @@ class Generation:
     dialogue: list[dict[str, Any]]
     bg_source: str | None
     created_at: datetime
+    elapsed_seconds: float | None
 
 
 def init_db() -> None:
@@ -72,6 +73,7 @@ def _gen_from_row(r: GenRow) -> Generation:
         dialogue=d,
         bg_source=r.bg_source,
         created_at=r.created_at,
+        elapsed_seconds=getattr(r, "elapsed_seconds", None),
     )
 
 
@@ -177,6 +179,7 @@ def insert_generation(
     topic: str,
     dialogue: list[dict[str, Any]],
     bg_source: str | None,
+    elapsed_seconds: float | None = None,
 ) -> None:
     now = datetime.now(timezone.utc)
     with SessionLocal() as session:
@@ -190,6 +193,7 @@ def insert_generation(
                 dialogue=dialogue,
                 bg_source=bg_source,
                 created_at=now,
+                elapsed_seconds=elapsed_seconds,
             )
         )
         session.commit()

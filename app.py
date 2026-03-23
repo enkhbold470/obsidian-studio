@@ -3,10 +3,8 @@ import argparse
 from pathlib import Path
 
 from dotenv import load_dotenv
-from openai import OpenAI
-
 from backend.paths import PROJECT_ROOT
-from backend.brainrot import Config, run_pipeline
+from backend.brainrot import Config, get_llm_client, get_tts_client, run_pipeline
 
 load_dotenv(PROJECT_ROOT / ".env")
 
@@ -29,7 +27,7 @@ def main():
     cfg = Config(topic=args.topic, dialogue_lines=args.lines, tts_speed=args.speed, shake_speed=args.shake)
     temp_dir = PROJECT_ROOT / "temp_build" / "cli"
     temp_dir.mkdir(parents=True, exist_ok=True)
-    out = run_pipeline(cfg, bg_path, Path(args.output), OpenAI(), temp_dir, PROJECT_ROOT)
+    out = run_pipeline(cfg, bg_path, Path(args.output), get_llm_client(), get_tts_client(), temp_dir, PROJECT_ROOT)
     print(f"Done: {out}")
 
 

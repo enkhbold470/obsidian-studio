@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import shutil
 import subprocess
 import time
@@ -11,6 +12,8 @@ import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+from openai import OpenAI
 
 from backend.paths import PROJECT_ROOT
 
@@ -25,8 +28,69 @@ def _pipe_print(msg: str) -> None:
 FFMPEG_BIN = "ffmpeg"
 FFPROBE_BIN = "ffprobe"
 
-TTS_VOICES = ["alloy", "ash", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer"]
-TTS_MODELS = ["tts-1", "tts-1-hd"]
+# OpenAI-compatible Kokoro HTTP server (same shape as test.py PAYLOAD).
+DEFAULT_KOKORO_BASE_URL = os.environ.get("KOKORO_BASE_URL", "https://api.kokoro.dok.inkyg.com/v1")
+
+TTS_MODELS = ["kokoro"]
+
+# Kokoro voice ids (subset); blend strings like bm_george*0.7+af_bella*0.3 are supported if the server implements them.
+TTS_VOICES = [
+    "am_michael",
+    "bm_george",
+    "bm_george*0.7+af_bella*0.3",
+    "af_bella",
+    "af_sarah",
+    "af_nova",
+    "bm_fable",
+    "bm_daniel",
+    "bm_lewis",
+    "bm_v0george",
+    "am_echo",
+    "am_onyx",
+]
+
+
+def get_llm_client() -> OpenAI:
+    """Chat + Whisper on the OpenAI API (OPENAI_API_KEY)."""
+    return OpenAI()
+
+
+def get_tts_client() -> OpenAI:
+    """Speech on the Kokoro OpenAI-compatible server."""
+    base = os.environ.get("KOKORO_BASE_URL", DEFAULT_KOKORO_BASE_URL).rstrip("/")
+    key = os.environ.get("KOKORO_API_KEY", "not-needed")
+    return OpenAI(base_url=base, api_key=key)
+
+
+def _primary_voice_id(voice: str) -> str:
+    """kokoro blend 'bm_george*0.7+af_bella*0.3' -> 'bm_george' for single-voice fallback."""
+    first = voice.split("+", 1)[0].strip()
+    return first.split("*", 1)[0].strip()
+
+
+def kokoro_speech_to_file(tts_client: Any, fp: Path, model: str, voice: str, text: str) -> None:
+    try:
+        tts_client.audio.speech.create(
+            model=model,
+            voice=voice,
+            input=text,
+            response_format="mp3",
+        ).write_to_file(fp)
+        return
+    except Exception as e:
+        code = getattr(e, "status_code", None)
+        if code not in (400, 422):
+            raise
+        primary = _primary_voice_id(voice)
+        if primary == voice:
+            raise
+        _pipe_print(f"TTS voice fallback {voice!r} → {primary!r} ({type(e).__name__})")
+        tts_client.audio.speech.create(
+            model=model,
+            voice=primary,
+            input=text,
+            response_format="mp3",
+        ).write_to_file(fp)
 
 GPT_MODELS = [
     "gpt-5.4",
@@ -67,15 +131,15 @@ class Config:
     topic: str = ""
     dialogue: list[dict[str, str]] = field(default_factory=list)
     dialogue_lines: int = 8
-    tts_speed: float = 1.2
+    tts_speed: float = 1.4
     shake_speed: float = 10
     font_name: str = "Arial Black"
     font_size: int = 100
     text_color: str = "#FDE047"
     outline_color: str = "#000000"
-    peter_voice: str = "echo"
-    stewie_voice: str = "alloy"
-    tts_model: str = "tts-1"
+    peter_voice: str = "am_michael"
+    stewie_voice: str = "bm_george"
+    tts_model: str = "kokoro"
     gpt_model: str = "gpt-5.4"
     output_format: str = "mp4"
 
@@ -140,7 +204,15 @@ def is_valid_dialogue(lines: Any) -> bool:
     return True
 
 
-def run_pipeline(cfg: Config, bg_path: Path, output_path: Path, client: Any, temp_dir: Path, project_root: Path | None = None) -> Path:
+def run_pipeline(
+    cfg: Config,
+    bg_path: Path,
+    output_path: Path,
+    llm_client: Any,
+    tts_client: Any,
+    temp_dir: Path,
+    project_root: Path | None = None,
+) -> Path:
     t0 = time.perf_counter()
     _pipe_print(f"run_pipeline start bg={bg_path} out={output_path} temp_dir={temp_dir}")
     _ensure_ffmpeg()
@@ -152,7 +224,7 @@ def run_pipeline(cfg: Config, bg_path: Path, output_path: Path, client: Any, tem
         if not (cfg.topic or "").strip():
             raise ValueError("Provide dialogue JSON or a topic (CLI auto-writes script).")
         _pipe_print("generating dialogue via LLM …")
-        dialogue = generate_dialogue(client, (cfg.topic or "").strip(), cfg.dialogue_lines, cfg.gpt_model)
+        dialogue = generate_dialogue(llm_client, (cfg.topic or "").strip(), cfg.dialogue_lines, cfg.gpt_model)
         _pipe_print(f"LLM dialogue lines={len(dialogue)} ({time.perf_counter() - t0:.2f}s)")
     else:
         _pipe_print(f"using provided dialogue lines={len(dialogue)}")
@@ -163,7 +235,13 @@ def run_pipeline(cfg: Config, bg_path: Path, output_path: Path, client: Any, tem
         sp, txt = line["speaker"], line["text"]
         fp = temp_dir / f"line_{i}.mp3"
         _pipe_print(f"TTS line {i + 1}/{len(dialogue)} speaker={sp} …")
-        client.audio.speech.create(model=cfg.tts_model, voice=voices.get(sp, "onyx"), input=txt).write_to_file(fp)
+        kokoro_speech_to_file(
+            tts_client,
+            fp,
+            cfg.tts_model,
+            voices.get(sp, "bm_george"),
+            txt,
+        )
         segments.append({"file": fp, "speaker": sp, "duration": _get_duration(fp), "text": txt})
     _pipe_print(f"TTS done ({time.perf_counter() - t0:.2f}s)")
 
@@ -188,7 +266,7 @@ def run_pipeline(cfg: Config, bg_path: Path, output_path: Path, client: Any, tem
         total += d
 
     _pipe_print(f"Whisper transcription audio total_duration≈{total:.2f}s …")
-    words = client.audio.transcriptions.create(file=open(combined, "rb"), model="whisper-1",
+    words = llm_client.audio.transcriptions.create(file=open(combined, "rb"), model="whisper-1",
                                                response_format="verbose_json",
                                                timestamp_granularities=["word"]).words
     _pipe_print(f"Whisper done words={len(words)} ({time.perf_counter() - t0:.2f}s)")

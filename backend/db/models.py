@@ -7,7 +7,7 @@ from typing import Any, List
 
 import uuid
 
-from sqlalchemy import Boolean, ForeignKey, Index, Integer, Text, UniqueConstraint, text
+from sqlalchemy import Boolean, Float, ForeignKey, Index, Integer, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -76,5 +76,6 @@ class Generation(Base):
     created_at: Mapped[datetime] = mapped_column(
         server_default=text("now()"), nullable=False
     )
+    elapsed_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     user: Mapped["User | None"] = relationship(back_populates="generations")
