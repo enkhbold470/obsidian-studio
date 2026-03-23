@@ -1,12 +1,13 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
+
+const SCRIPT_READY_KEY = "reelmaker-script-ready";
 import type { AuthUser, BackgroundItem, DialogueLine } from "../api";
 import {
   deleteBackground,
   getBackgrounds,
   getMe,
   getOptions,
-  logout,
   postGenerate,
   postGenerateWithProgress,
   postScript,
@@ -19,6 +20,7 @@ import {
   toPayloadLines,
 } from "../components/DialogueEditor";
 import { formatElapsedSeconds } from "../formatElapsed";
+import { inputClass, panelClass, panelMutedClass, selectClass } from "../lib/obsidianStyles";
 
 type OptionsPayload = {
   tts_voices: string[];
@@ -80,6 +82,8 @@ export const Maker = () => {
   const [genProgress, setGenProgress] = useState(0);
   const [libraryUploadPct, setLibraryUploadPct] = useState<number | null>(null);
   const [genUploadPct, setGenUploadPct] = useState<number | null>(null);
+  /** After first successful AI draft (or user skips), show dialogue / background / advanced / generate. */
+  const [scriptReady, setScriptReady] = useState(false);
   const genTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refreshBackgrounds = useCallback(() => {
@@ -150,6 +154,25 @@ export const Maker = () => {
   }, [refreshBackgrounds]);
 
   useEffect(() => {
+    try {
+      if (sessionStorage.getItem(SCRIPT_READY_KEY) === "1") {
+        setScriptReady(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const persistScriptReady = useCallback(() => {
+    setScriptReady(true);
+    try {
+      sessionStorage.setItem(SCRIPT_READY_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
     if (!genLoading) {
       if (genTimerRef.current) {
         clearInterval(genTimerRef.current);
@@ -182,12 +205,6 @@ export const Maker = () => {
     };
   }, [genLoading, genUploadPct]);
 
-  const handleLogout = async () => {
-    await logout();
-    setUser(null);
-    window.location.href = "/login";
-  };
-
   const handleDraftScript = async () => {
     let t = topic.trim();
     if (t.length < 10) {
@@ -210,6 +227,7 @@ export const Maker = () => {
       }
       const d = data.dialogue as DialogueLine[];
       setLines(d.length ? d : [{ speaker: "Peter", text: "" }]);
+      persistScriptReady();
     } catch (e) {
       setFormError(e instanceof Error ? e.message : "Draft failed");
     } finally {
@@ -301,6 +319,14 @@ export const Maker = () => {
     [lines, bgFile, savedBgId]
   );
 
+  const handleFormSubmit = (e: FormEvent<HTMLFormElement>) => {
+    if (!scriptReady) {
+      e.preventDefault();
+      return;
+    }
+    void handleGenerate(e);
+  };
+
   const handleGenerate = async (e: FormEvent<HTMLFormElement>) => {
     const fd = buildFormData(e);
     if (!fd) {
@@ -337,6 +363,7 @@ export const Maker = () => {
       if (typeof data.elapsedSeconds === "number" && Number.isFinite(data.elapsedSeconds)) {
         setLastGenElapsedSec(data.elapsedSeconds);
       }
+      persistScriptReady();
       refreshBackgrounds();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "failed");
@@ -348,141 +375,172 @@ export const Maker = () => {
   };
 
   if (authLoading) {
-    return <p className="p-6">Loading…</p>;
+    return (
+      <div className="px-6 py-16 text-center text-on-surface-variant" aria-live="polite">
+        Loading…
+      </div>
+    );
   }
   if (!skipAuth && !user) {
     return <Navigate to="/login" replace />;
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-black pb-2 mb-6">
-        <h1 className="text-2xl font-bold">ReelMaker</h1>
-        <div className="flex items-center gap-3 text-sm">
-          {user ? (
-            <>
-              <span className="text-gray-700">{user.email}</span>
-              <Link className="underline font-bold" to={`/u/${user.id}/renders`}>
-                Your renders
-              </Link>
-            </>
-          ) : null}
-          {skipAuth ? (
-            <span className="text-amber-800 font-bold">Auth disabled (dev)</span>
-          ) : null}
-          {!skipAuth ? (
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="border-2 border-black px-2 py-1 font-bold hover:bg-gray-100"
-            >
-              Log out
-            </button>
-          ) : (
-            <Link className="underline font-bold" to="/login">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-4">
+      <div className="mb-6 lg:mb-4">
+        <h1 className="font-headline text-3xl font-extrabold tracking-tight text-on-surface md:text-4xl">
+          Editor
+        </h1>
+        <p className="mt-1 text-sm text-on-surface-variant">
+          Start with a topic, then draft your script. More steps unlock after your first successful draft.
+        </p>
+        {skipAuth ? (
+          <p className="mt-2 text-xs font-semibold text-tertiary">
+            Auth disabled (dev) —{" "}
+            <Link className="underline" to="/login">
               Login anyway
             </Link>
-          )}
-        </div>
-      </header>
-
-      <form className="space-y-6" onSubmit={handleGenerate}>
-        <div>
-          <label className="block font-bold">AI model (draft script)</label>
-          <select
-            name="gpt_model"
-            value={gptModel}
-            onChange={(e) => setGptModel(e.target.value)}
-            className="w-full border-2 border-black p-2"
-          >
-            {(options?.gpt_models ?? [gptModel]).map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-          <p className="text-sm text-gray-600 mt-1">Used for “Draft script with AI” only.</p>
-        </div>
-        <div>
-          <label className="block font-bold">Topic (for AI script draft)</label>
-          <textarea
-            name="topic"
-            rows={3}
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="Paste a paragraph / dump for the debate topic…"
-            className="mt-1 w-full border-2 border-black p-2 resize-y min-h-[5rem]"
-          />
-          <p className="text-sm text-gray-600 mt-1">
-            <strong>Draft script with AI</strong> uses the line count below. <strong>Generate video</strong> runs TTS +
-            subs + mux.
           </p>
-        </div>
+        ) : null}
+      </div>
 
-        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-end gap-3 sm:gap-4 border-2 border-black p-3 bg-gray-50">
-          <div className="flex flex-wrap items-center gap-2">
-            <label htmlFor="dialogue_lines" className="font-bold text-sm whitespace-nowrap">
-              Dialogue lines (AI draft)
-            </label>
-            <input
-              id="dialogue_lines"
-              name="dialogue_lines"
-              type="number"
-              value={dialogueLines}
-              min={2}
-              max={20}
-              onChange={(e) => setDialogueLines(Number(e.target.value))}
-              className="w-16 border-2 border-black p-2 text-center"
-            />
+      <form className="divide-y divide-outline-variant/10" onSubmit={handleFormSubmit}>
+        <section aria-label="Topic and draft" className="space-y-4 py-6">
+          <div className="flex flex-col gap-6 lg:grid lg:grid-cols-12 lg:items-start lg:gap-6">
+            <div className="space-y-2 lg:col-span-4">
+              <label className="block font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                AI model (draft script)
+              </label>
+              <select
+                name="gpt_model"
+                value={gptModel}
+                onChange={(e) => setGptModel(e.target.value)}
+                className={selectClass}
+              >
+                {(options?.gpt_models ?? [gptModel]).map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-on-surface-variant">Used for “Draft script with AI” only.</p>
+            </div>
+            <div className="space-y-2 lg:col-span-5">
+              <label className="block font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                Topic (for AI script draft)
+              </label>
+              <textarea
+                name="topic"
+                rows={3}
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                placeholder="Paste a paragraph / dump for the debate topic…"
+                className={`${inputClass} min-h-20 resize-y`}
+              />
+              <p className="text-xs text-on-surface-variant">
+                <strong className="text-on-surface">Draft</strong> uses line count; <strong className="text-on-surface">Generate</strong> runs TTS + subs + mux.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 border-outline-variant/10 lg:col-span-3 lg:border-l lg:pl-6">
+              <div className="flex flex-wrap items-center gap-2">
+                <label htmlFor="dialogue_lines" className="font-label text-sm font-bold text-on-surface">
+                  Lines (AI draft)
+                </label>
+                <input
+                  id="dialogue_lines"
+                  name="dialogue_lines"
+                  type="number"
+                  value={dialogueLines}
+                  min={2}
+                  max={20}
+                  onChange={(e) => setDialogueLines(Number(e.target.value))}
+                  className="w-16 rounded-lg border border-outline-variant/20 bg-surface-container-lowest px-2 py-2 text-center text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleDraftScript}
+                disabled={draftLoading}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-outline-variant/20 bg-surface-container-highest px-4 py-2.5 font-label text-sm font-bold text-on-surface transition hover:bg-surface-bright disabled:opacity-50 lg:w-auto"
+              >
+                {draftLoading ? <Spinner /> : null}
+                Draft script with AI
+              </button>
+            </div>
           </div>
-          <p className="text-sm text-gray-600 flex-1 min-w-[10rem] self-center sm:self-auto">
-            Used when you click “Draft script with AI”.
-          </p>
-          <button
-            type="button"
-            onClick={handleDraftScript}
-            disabled={draftLoading}
-            className="inline-flex items-center justify-center gap-2 border-2 border-black px-4 py-2 font-bold bg-white hover:bg-gray-100 disabled:opacity-50 shrink-0"
-          >
-            {draftLoading ? <Spinner /> : null}
-            Draft script with AI
-          </button>
-        </div>
+        </section>
 
-        <div>
-          <label className="block font-bold">Dialogue</label>
-          <DialogueEditor lines={lines} onChange={setLines} />
-        </div>
+        {!scriptReady ? (
+          <div className="space-y-3 py-6">
+            {formError ? (
+              <p className="rounded-xl border border-error/40 bg-error/10 px-4 py-3 text-sm text-error" role="alert">
+                {formError}
+              </p>
+            ) : null}
+            <p className="text-sm text-on-surface-variant">
+              Run <strong className="text-on-surface">Draft script with AI</strong> to unlock dialogue, background, and
+              render. Or continue without a draft if you already know your lines.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setFormError("");
+                persistScriptReady();
+              }}
+              className="rounded-xl border border-secondary/40 bg-surface-container px-4 py-2.5 text-sm font-bold text-secondary transition hover:bg-surface-container-highest"
+            >
+              Continue without draft — show dialogue &amp; background
+            </button>
+          </div>
+        ) : null}
 
-        <div>
-          <label className="block font-bold">Background video</label>
-          <p className="text-sm text-gray-600 mb-2">
-            Videos are stored in your account (S3/MinIO). Upload adds to your library; each generate from a new file
-            also saves a copy to the library.
+        {scriptReady ? (
+          <>
+        <section aria-label="Dialogue" className="space-y-3 py-6">
+          <h2 className="font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+            Dialogue
+          </h2>
+          <div className={panelClass}>
+            <DialogueEditor lines={lines} onChange={setLines} />
+          </div>
+        </section>
+
+        <section aria-label="Background video" className="space-y-4 py-6">
+          <h2 className="font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+            Background video
+          </h2>
+          <p className="text-sm text-on-surface-variant">
+            Uploads go to your library; generating from a new file also saves a copy.
           </p>
           {bgLoadErr ? (
-            <p className="text-amber-800 text-sm mb-2 border border-amber-600 p-2">{bgLoadErr}</p>
+            <p className="rounded-lg border border-tertiary/40 bg-tertiary/10 px-3 py-2 text-sm text-tertiary">
+              {bgLoadErr}
+            </p>
           ) : null}
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {bgItems.map((b) => (
               <div
                 key={b.id}
-                className={`relative border-2 p-1 ${savedBgId === b.id ? "border-black ring-2 ring-black" : "border-gray-300"}`}
+                className={`relative overflow-hidden rounded-xl border p-1 transition ${
+                  savedBgId === b.id
+                    ? "border-secondary ring-2 ring-secondary/40"
+                    : "border-outline-variant/15 hover:border-outline-variant/30"
+                }`}
               >
                 <button
                   type="button"
                   onClick={() => handlePickSaved(b.id)}
                   className="block w-full text-left"
                 >
-                  <div className="aspect-video bg-black">
+                  <div className="aspect-video overflow-hidden rounded-lg bg-surface-container-lowest">
                     <BgPreview item={b} />
                   </div>
-                  <p className="text-xs p-1 truncate font-mono">{b.filename}</p>
+                  <p className="truncate p-2 font-mono text-xs text-on-surface-variant">{b.filename}</p>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDeleteBg(b.id, b.filename)}
-                  className="absolute top-1 right-1 bg-white border border-black text-xs px-1 font-bold hover:bg-red-50"
+                  className="absolute right-2 top-2 rounded-md border border-outline-variant/30 bg-surface-container px-2 py-0.5 text-xs font-bold text-error hover:bg-error/10"
                   aria-label={`Delete ${b.filename}`}
                 >
                   ×
@@ -490,9 +548,9 @@ export const Maker = () => {
               </div>
             ))}
           </div>
-          <div className="mt-3 space-y-2">
-            <label className="block text-sm font-bold" htmlFor="bg-upload">
-              Upload for this render (not saved until generate completes — then copied to library)
+          <div className="space-y-2">
+            <label className="block text-sm font-bold text-on-surface" htmlFor="bg-upload">
+              Upload for this render (saved to library after generate)
             </label>
             <input
               id="bg-upload"
@@ -500,27 +558,29 @@ export const Maker = () => {
               type="file"
               accept="video/*"
               onChange={handleBgUploadChange}
-              className="w-full border-2 border-black p-2"
+              className={`${inputClass} file:mr-3 file:rounded-lg file:border-0 file:bg-primary/20 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary`}
             />
           </div>
           <input type="hidden" name="bg_saved_id" value={savedBgId} readOnly />
-        </div>
+        </section>
 
-        <details className="border-2 border-black rounded-sm">
-          <summary className="cursor-pointer font-bold px-3 py-2 bg-gray-100 hover:bg-gray-200 select-none">
-            Advanced options
+        <details className="group py-6">
+          <summary className="cursor-pointer list-none font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant transition hover:text-on-surface [&::-webkit-details-marker]:hidden">
+            <span className="inline-flex items-center gap-2 rounded-lg border border-outline-variant/15 bg-surface-container-low px-4 py-2">
+              Advanced options
+            </span>
           </summary>
-          <div className="p-3 pt-4 space-y-4 border-t-2 border-black">
-            <p className="text-xs text-gray-600 -mt-1 mb-1">
-              Collapsed = use built-in defaults. Open to change library upload, timing, look, and voices.
-            </p>
+          <p className="mt-4 text-xs text-on-surface-variant">
+            Library upload, timing, output, look, and voices — defaults apply when collapsed.
+          </p>
+          <div className={`${panelMutedClass} mt-4 space-y-4`}>
             <div>
-              <label className="block text-sm font-bold mb-1" htmlFor="lib-upload">
+              <label className="mb-2 block text-sm font-bold text-on-surface" htmlFor="lib-upload">
                 Add to library only
               </label>
               {libraryUploadPct !== null ? (
                 <div
-                  className="mb-2 h-2 w-full border border-black bg-gray-200"
+                  className="mb-2 h-2 w-full overflow-hidden rounded-full bg-surface-container-highest"
                   role="progressbar"
                   aria-valuenow={libraryUploadPct}
                   aria-valuemin={0}
@@ -528,7 +588,7 @@ export const Maker = () => {
                   aria-label="Library upload progress"
                 >
                   <div
-                    className="h-full bg-black transition-[width] duration-150"
+                    className="h-full bg-primary transition-[width] duration-150"
                     style={{ width: `${libraryUploadPct}%` }}
                   />
                 </div>
@@ -539,13 +599,13 @@ export const Maker = () => {
                 accept="video/*"
                 onChange={handleUploadToLibrary}
                 disabled={libraryUploadPct !== null}
-                className="w-full border-2 border-dashed border-gray-400 p-2 text-sm"
+                className={`${inputClass} border-dashed file:mr-3 file:rounded-lg file:border-0 file:bg-primary/20 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary`}
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               <div>
-                <label className="block font-bold">TTS speed</label>
+                <label className="mb-1 block font-bold text-on-surface">TTS speed</label>
                 <input
                   name="tts_speed"
                   type="number"
@@ -554,11 +614,11 @@ export const Maker = () => {
                   min={0.5}
                   max={2}
                   onChange={(e) => setTtsSpeed(Number(e.target.value))}
-                  className="w-full border-2 border-black p-2"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="block font-bold">Shake speed (lower=slower)</label>
+                <label className="mb-1 block font-bold text-on-surface">Shake speed</label>
                 <input
                   name="shake_speed"
                   type="number"
@@ -566,32 +626,43 @@ export const Maker = () => {
                   min={5}
                   max={50}
                   onChange={(e) => setShakeSpeed(Number(e.target.value))}
-                  className="w-full border-2 border-black p-2"
+                  className={inputClass}
                 />
               </div>
-            </div>
-
-            <div>
-              <label className="block font-bold">Output</label>
-              <select
-                name="output_format"
-                value={outputFormat}
-                onChange={(e) => setOutputFormat(e.target.value)}
-                className="w-full max-w-xs border-2 border-black p-2"
-              >
-                <option value="mp4">MP4</option>
-                <option value="mkv">MKV</option>
-              </select>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block font-bold">Font</label>
+                <label className="mb-1 block font-bold text-on-surface">Output</label>
+                <select
+                  name="output_format"
+                  value={outputFormat}
+                  onChange={(e) => setOutputFormat(e.target.value)}
+                  className={selectClass}
+                >
+                  <option value="mp4">MP4</option>
+                  <option value="mkv">MKV</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block font-bold text-on-surface">TTS model</label>
+                <select
+                  name="tts_model"
+                  value={ttsModel}
+                  onChange={(e) => setTtsModel(e.target.value)}
+                  className={selectClass}
+                >
+                  {(options?.tts_models ?? [ttsModel]).map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block font-bold text-on-surface">Font</label>
                 <select
                   name="font_name"
                   value={fontName}
                   onChange={(e) => setFontName(e.target.value)}
-                  className="w-full border-2 border-black p-2"
+                  className={selectClass}
                 >
                   {(options?.fonts ?? ["Arial"]).map((f) => (
                     <option key={f} value={f}>
@@ -601,7 +672,7 @@ export const Maker = () => {
                 </select>
               </div>
               <div>
-                <label className="block font-bold">Font size</label>
+                <label className="mb-1 block font-bold text-on-surface">Font size</label>
                 <input
                   name="font_size"
                   type="number"
@@ -609,42 +680,36 @@ export const Maker = () => {
                   min={40}
                   max={200}
                   onChange={(e) => setFontSize(Number(e.target.value))}
-                  className="w-full border-2 border-black p-2"
+                  className={inputClass}
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block font-bold">Text color</label>
+                <label className="mb-1 block font-bold text-on-surface">Text color</label>
                 <input
                   name="text_color"
                   type="color"
                   value={textColor}
                   onChange={(e) => setTextColor(e.target.value)}
-                  className="w-full h-10 border-2 border-black cursor-pointer"
+                  className="h-11 w-full cursor-pointer rounded-xl border border-outline-variant/20 bg-surface-container-lowest"
                 />
               </div>
               <div>
-                <label className="block font-bold">Outline color</label>
+                <label className="mb-1 block font-bold text-on-surface">Outline color</label>
                 <input
                   name="outline_color"
                   type="color"
                   value={outlineColor}
                   onChange={(e) => setOutlineColor(e.target.value)}
-                  className="w-full h-10 border-2 border-black cursor-pointer"
+                  className="h-11 w-full cursor-pointer rounded-xl border border-outline-variant/20 bg-surface-container-lowest"
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block font-bold">Peter voice</label>
+              <div className="sm:col-span-2 lg:col-span-1">
+                <label className="mb-1 block font-bold text-on-surface">Peter voice</label>
                 <select
                   name="peter_voice"
                   value={peterVoice}
                   onChange={(e) => setPeterVoice(e.target.value)}
-                  className="w-full border-2 border-black p-2"
+                  className={selectClass}
                 >
                   {(options?.tts_voices ?? ["am_michael", "bm_george", "bm_george*0.7+af_bella*0.3"]).map((v) => (
                     <option key={v} value={v}>
@@ -653,13 +718,13 @@ export const Maker = () => {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block font-bold">Stewie voice</label>
+              <div className="sm:col-span-2 lg:col-span-1">
+                <label className="mb-1 block font-bold text-on-surface">Stewie voice</label>
                 <select
                   name="stewie_voice"
                   value={stewieVoice}
                   onChange={(e) => setStewieVoice(e.target.value)}
-                  className="w-full border-2 border-black p-2"
+                  className={selectClass}
                 >
                   {(options?.tts_voices ?? ["am_michael", "bm_george", "bm_george*0.7+af_bella*0.3"]).map((v) => (
                     <option key={`s-${v}`} value={v}>
@@ -669,84 +734,82 @@ export const Maker = () => {
                 </select>
               </div>
             </div>
-
-            <div>
-              <label className="block font-bold">TTS model</label>
-              <select
-                name="tts_model"
-                value={ttsModel}
-                onChange={(e) => setTtsModel(e.target.value)}
-                className="w-full max-w-md border-2 border-black p-2"
-              >
-                {(options?.tts_models ?? [ttsModel]).map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
         </details>
 
-        {genUploadPct !== null ? (
-          <div className="mb-2">
-            <p className="text-xs font-bold text-gray-700">
-              {genUploadPct < 100
-                ? `Uploading background… ${genUploadPct}%`
-                : "Upload complete — rendering on server…"}
-            </p>
-            <div
-              className="mt-1 h-2 w-full border border-black bg-gray-200"
-              role="progressbar"
-              aria-valuenow={genUploadPct}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label="Generate upload progress"
-            >
-              <div
-                className="h-full bg-gray-700 transition-[width] duration-150"
-                style={{ width: `${genUploadPct}%` }}
-              />
-            </div>
-          </div>
-        ) : null}
-
-        <div className="relative overflow-hidden border-2 border-black">
-          <button
-            type="submit"
-            disabled={genLoading}
-            className="relative z-10 w-full bg-black text-white p-3 font-bold hover:bg-gray-800 disabled:opacity-70"
-          >
-            {genLoading ? (
-              <span className="flex items-center justify-center gap-2">
-                <Spinner /> Generating…
-              </span>
-            ) : (
-              "Generate video"
-            )}
-          </button>
-          {genLoading && (genUploadPct === null || genUploadPct >= 100) ? (
-            <div
-              className="absolute left-0 top-0 h-full bg-white/25 transition-[width] duration-150"
-              style={{ width: `${genProgress}%` }}
-            />
-          ) : null}
-        </div>
-        {formError ? (
-          <p className="text-sm text-red-700 border border-red-300 p-2" role="alert">
-            {formError}
-          </p>
-        ) : null}
-
-        {videoSrc ? (
-          <div className="pt-2">
-            {lastGenElapsedSec != null ? (
-              <p className="text-sm text-gray-700 mb-2" aria-live="polite">
-                Render time: <span className="font-bold">{formatElapsedSeconds(lastGenElapsedSec)}</span>
+        <section aria-label="Generate" className="space-y-4 py-6">
+          {genUploadPct !== null ? (
+            <div>
+              <p className="text-xs font-bold text-on-surface-variant">
+                {genUploadPct < 100
+                  ? `Uploading background… ${genUploadPct}%`
+                  : "Upload complete — rendering on server…"}
               </p>
+              <div
+                className="mt-1 h-2 w-full overflow-hidden rounded-full bg-surface-container-highest"
+                role="progressbar"
+                aria-valuenow={genUploadPct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Generate upload progress"
+              >
+                <div
+                  className="h-full bg-secondary transition-[width] duration-150"
+                  style={{ width: `${genUploadPct}%` }}
+                />
+              </div>
+            </div>
+          ) : null}
+
+          <div className="flex flex-col gap-4 lg:grid lg:grid-cols-12 lg:gap-6 lg:items-start">
+            <div className={videoSrc ? "space-y-4 lg:col-span-5" : "space-y-4 lg:col-span-12"}>
+              <div className="relative overflow-hidden rounded-xl border border-outline-variant/10 shadow-primaryGlow">
+                <button
+                  type="submit"
+                  disabled={genLoading}
+                  className="relative z-10 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dim px-4 py-4 font-headline text-base font-bold text-on-surface shadow-lg shadow-primary/25 transition hover:brightness-110 disabled:opacity-70"
+                  aria-busy={genLoading}
+                >
+                  {genLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Spinner /> Generating…
+                    </span>
+                  ) : (
+                    "Generate video"
+                  )}
+                </button>
+                {genLoading && (genUploadPct === null || genUploadPct >= 100) ? (
+                  <div
+                    className="absolute left-0 top-0 h-full bg-on-surface/15 transition-[width] duration-150"
+                    style={{ width: `${genProgress}%` }}
+                  />
+                ) : null}
+              </div>
+              {formError ? (
+                <p className="rounded-xl border border-error/40 bg-error/10 px-4 py-3 text-sm text-error" role="alert">
+                  {formError}
+                </p>
+              ) : null}
+            </div>
+            {videoSrc ? (
+              <div className="overflow-hidden rounded-xl border border-outline-variant/10 bg-surface-container-low pt-2 shadow-primaryGlow lg:col-span-7">
+                {lastGenElapsedSec != null ? (
+                  <p className="mb-3 px-2 text-sm text-on-surface-variant" aria-live="polite">
+                    Render time:{" "}
+                    <span className="font-bold text-secondary">{formatElapsedSeconds(lastGenElapsedSec)}</span>
+                  </p>
+                ) : null}
+                <video
+                  key={videoSrc}
+                  controls
+                  className="mx-auto max-h-editor-preview-sm w-full max-w-3xl object-contain"
+                  src={videoSrc}
+                />
+              </div>
             ) : null}
-            <video key={videoSrc} controls className="w-full border-2 border-black max-h-[70vh]" src={videoSrc} />
           </div>
+        </section>
+          </>
         ) : null}
       </form>
     </div>

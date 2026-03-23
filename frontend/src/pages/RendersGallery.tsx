@@ -1,8 +1,10 @@
+import { Film } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import type { AuthUser } from "../api";
-import { getMe, getUserRenders, logout, patchMe, type HistoryItem } from "../api";
+import { getMe, getUserRenders, patchMe, type HistoryItem } from "../api";
 import { formatElapsedSeconds } from "../formatElapsed";
+import { panelClass } from "../lib/obsidianStyles";
 
 export const RendersGallery = () => {
   const { userId } = useParams<{ userId: string }>();
@@ -59,16 +61,24 @@ export const RendersGallery = () => {
   };
 
   if (me === undefined && !skipAuth) {
-    return <p className="p-6">Loading…</p>;
+    return (
+      <div className="px-6 py-16 text-center text-on-surface-variant" aria-live="polite">
+        Loading…
+      </div>
+    );
   }
   if (Number.isNaN(id)) {
     return <Navigate to="/" replace />;
   }
   if (err === "Forbidden") {
     return (
-      <div className="max-w-3xl mx-auto p-6">
-        <p className="text-red-700 font-bold">This gallery is private or does not exist.</p>
-        <Link className="underline mt-2 inline-block" to="/">
+      <div className="mx-auto max-w-lg px-6 py-16 text-center">
+        <p className="font-headline text-lg font-bold text-error">Gallery unavailable</p>
+        <p className="mt-2 text-sm text-on-surface-variant">This gallery is private or does not exist.</p>
+        <Link
+          className="mt-6 inline-block rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary transition hover:brightness-110"
+          to="/"
+        >
           Back to maker
         </Link>
       </div>
@@ -78,75 +88,93 @@ export const RendersGallery = () => {
   const isOwner = Boolean(me && me.id === id);
 
   return (
-    <div className="max-w-5xl mx-auto p-4">
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-black pb-3 mb-6">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{isOwner ? "Your renders" : "Gallery"}</h1>
-          <p className="text-sm text-gray-600">User #{id}</p>
+          <h1 className="font-headline text-3xl font-extrabold tracking-tight text-on-surface md:text-4xl">
+            {isOwner ? "Your renders" : "Gallery"}
+          </h1>
+          <p className="mt-1 text-sm text-on-surface-variant">User #{id}</p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
           {isOwner ? (
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <label
+              className={`flex cursor-pointer items-start gap-3 rounded-xl border border-outline-variant/10 bg-surface-container px-4 py-3 transition ${toggleLoading ? "opacity-60" : ""}`}
+            >
               <input
                 type="checkbox"
                 checked={galleryPublic}
                 disabled={toggleLoading}
                 onChange={handleTogglePublic}
-                className="h-4 w-4"
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-outline-variant text-primary focus:ring-primary"
+                aria-label="Public gallery"
               />
-              <span>Public gallery (anyone with the link can view videos)</span>
+              <span className="text-sm text-on-surface-variant">
+                Public gallery — anyone with the link can view videos
+              </span>
             </label>
           ) : null}
-          <Link className="underline font-bold" to="/">
-            Maker
-          </Link>
-          {me && !skipAuth ? (
-            <button
-              type="button"
-              onClick={() => {
-                logout().then(() => {
-                  window.location.href = "/login";
-                });
-              }}
-              className="border-2 border-black px-2 py-1 text-sm font-bold"
-            >
-              Log out
-            </button>
-          ) : null}
         </div>
-      </header>
+      </div>
 
-      {err && err !== "Forbidden" ? <p className="text-red-700 mb-4">{err}</p> : null}
+      {err && err !== "Forbidden" ? (
+        <p className="mb-6 rounded-xl border border-error/30 bg-error/10 px-4 py-3 text-sm text-error" role="alert">
+          {err}
+        </p>
+      ) : null}
 
       {items.length === 0 ? (
-        <p className="text-gray-600">No renders yet.</p>
+        <div className={panelClass}>
+          <div className="flex flex-col items-center gap-3 py-12 text-center">
+            <Film className="h-12 w-12 text-on-surface-variant/40" aria-hidden />
+            <p className="text-on-surface-variant">No renders yet.</p>
+            {isOwner ? (
+              <Link
+                to="/"
+                className="mt-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary transition hover:brightness-110"
+              >
+                Open editor
+              </Link>
+            ) : null}
+          </div>
+        </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((h) => (
             <Link
               key={h.jobUid}
               to={`/u/${id}/renders/${h.jobUid}`}
-              className="border-2 border-black block hover:bg-gray-50 overflow-hidden"
+              className="group overflow-hidden rounded-xl border border-outline-variant/10 bg-surface-container-low shadow-primaryGlow transition hover:border-primary/30 hover:bg-surface-container"
             >
-              <div className="aspect-video bg-black">
+              <div className="aspect-video bg-surface-container-lowest">
                 <video
-                  className="w-full h-full object-cover pointer-events-none"
+                  className="h-full w-full object-cover pointer-events-none transition group-hover:brightness-110"
                   src={`/api/output/${h.jobUid}`}
                   muted
                   playsInline
                   preload="metadata"
                 />
               </div>
-              <div className="p-2 text-sm">
-                <p className="font-bold truncate">{h.topic?.trim() || "Untitled"}</p>
-                <p className="text-gray-600 text-xs">{new Date(h.createdAt).toLocaleString()}</p>
+              <div className="space-y-1 p-4">
+                <p className="truncate font-headline font-bold text-on-surface">
+                  {h.topic?.trim() || "Untitled"}
+                </p>
+                <p className="text-xs text-on-surface-variant">
+                  {new Date(h.createdAt).toLocaleString()}
+                </p>
                 {h.elapsedSeconds != null && Number.isFinite(h.elapsedSeconds) ? (
-                  <p className="text-gray-600 text-xs mt-0.5">
-                    Render: <span className="font-semibold">{formatElapsedSeconds(h.elapsedSeconds)}</span>
+                  <p className="text-xs text-on-surface-variant">
+                    Render:{" "}
+                    <span className="font-semibold text-secondary">
+                      {formatElapsedSeconds(h.elapsedSeconds)}
+                    </span>
                   </p>
                 ) : null}
                 {h.renderMeta?.gpt_model || h.renderMeta?.tts_model ? (
-                  <p className="text-gray-500 text-xs mt-0.5 font-mono truncate" title={[h.renderMeta?.gpt_model, h.renderMeta?.tts_model].filter(Boolean).join(" · ")}>
+                  <p
+                    className="truncate font-mono text-[10px] text-outline"
+                    title={[h.renderMeta?.gpt_model, h.renderMeta?.tts_model].filter(Boolean).join(" · ")}
+                  >
                     {[h.renderMeta?.gpt_model, h.renderMeta?.tts_model].filter(Boolean).join(" · ")}
                   </p>
                 ) : null}

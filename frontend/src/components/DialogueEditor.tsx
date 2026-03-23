@@ -1,14 +1,19 @@
 import { useCallback } from "react";
 import type { DialogueLine } from "../api";
+import { inputClass, selectClass } from "../lib/obsidianStyles";
 
 type DialogueEditorProps = {
   lines: DialogueLine[];
   onChange: (lines: DialogueLine[]) => void;
+  /** Fills parent on large screens (parent should be flex column with min-h-0). */
+  layout?: "default" | "fill";
 };
 
 const emptyLine = (): DialogueLine => ({ speaker: "Peter", text: "" });
 
-export const DialogueEditor = ({ lines, onChange }: DialogueEditorProps) => {
+const lineSelectClass = `${selectClass} dlg-speaker max-w-[8rem] shrink-0`;
+
+export const DialogueEditor = ({ lines, onChange, layout = "default" }: DialogueEditorProps) => {
   const handleAddLine = useCallback(() => {
     onChange([...lines, emptyLine()]);
   }, [lines, onChange]);
@@ -37,12 +42,23 @@ export const DialogueEditor = ({ lines, onChange }: DialogueEditorProps) => {
     [lines, onChange]
   );
 
+  const scrollBoxClass =
+    layout === "fill"
+      ? "dlg-scroll custom-scrollbar min-h-dialogue-panel-min flex-1 space-y-2 overflow-auto rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-3 lg:min-h-0"
+      : "dlg-scroll custom-scrollbar max-h-dialogue-panel min-h-dialogue-panel-min space-y-2 rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-3";
+
   return (
-    <div className="space-y-2">
-      <p className="text-sm text-gray-600">
+    <div
+      className={
+        layout === "fill"
+          ? "flex min-h-0 flex-1 flex-col gap-3 lg:min-h-64"
+          : "space-y-3"
+      }
+    >
+      <p className="shrink-0 text-sm text-on-surface-variant">
         Scroll inside the box — horizontal and vertical scrollbars stay visible when content overflows.
       </p>
-      <div className="dlg-scroll space-y-2 border-2 border-black p-2 min-h-[12rem] max-h-[min(50vh,28rem)]">
+      <div className={scrollBoxClass}>
         {lines.map((line, index) => (
           <div key={index} className="flex gap-2 items-start">
             <label className="sr-only" htmlFor={`sp-${index}`}>
@@ -54,7 +70,7 @@ export const DialogueEditor = ({ lines, onChange }: DialogueEditorProps) => {
               onChange={(e) =>
                 handleSpeaker(index, e.target.value as DialogueLine["speaker"])
               }
-              className="dlg-speaker border-2 border-black p-2 shrink-0"
+              className={lineSelectClass}
               aria-label={`Speaker for line ${index + 1}`}
             >
               <option value="Peter">Peter</option>
@@ -64,14 +80,14 @@ export const DialogueEditor = ({ lines, onChange }: DialogueEditorProps) => {
               type="text"
               value={line.text}
               onChange={(e) => handleText(index, e.target.value)}
-              className="dlg-text flex-1 min-w-0 border-2 border-black p-2"
+              className={`dlg-text flex-1 min-w-0 ${inputClass}`}
               placeholder="Line…"
               aria-label={`Dialogue text line ${index + 1}`}
             />
             <button
               type="button"
               onClick={() => handleRemove(index)}
-              className="shrink-0 border-2 border-black px-2 py-1 font-bold hover:bg-gray-100"
+              className="shrink-0 rounded-lg border border-outline-variant/20 bg-surface-container-highest px-3 py-2 text-sm font-bold text-on-surface-variant transition hover:border-error/40 hover:bg-error/10 hover:text-error"
               aria-label={`Remove line ${index + 1}`}
             >
               ×
@@ -82,7 +98,7 @@ export const DialogueEditor = ({ lines, onChange }: DialogueEditorProps) => {
       <button
         type="button"
         onClick={handleAddLine}
-        className="border-2 border-black px-2 py-1 text-sm font-bold hover:bg-gray-100"
+        className="shrink-0 rounded-xl border border-outline-variant/20 bg-surface-container-highest px-4 py-2 text-sm font-bold text-on-surface transition hover:bg-surface-bright"
       >
         + Add line
       </button>

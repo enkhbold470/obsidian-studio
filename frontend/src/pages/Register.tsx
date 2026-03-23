@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { register } from "../api";
+import { inputClass } from "../lib/obsidianStyles";
 
 export const Register = () => {
   const nav = useNavigate();
@@ -32,52 +33,60 @@ export const Register = () => {
   };
 
   return (
-    <div className="max-w-sm mx-auto p-6 space-y-4">
-      <h1 className="text-2xl font-bold border-b-2 border-black pb-2">Register</h1>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div>
-          <label className="block font-bold" htmlFor="reg-email">
-            Email
-          </label>
-          <input
-            id="reg-email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full border-2 border-black p-2"
-            required
-          />
-        </div>
-        <div>
-          <label className="block font-bold" htmlFor="reg-password">
-            Password
-          </label>
-          <input
-            id="reg-password"
-            type="password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full border-2 border-black p-2"
-            required
-          />
-        </div>
-        {error ? <p className="text-sm text-red-700">{error}</p> : null}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full border-2 border-black bg-black text-white p-2 font-bold hover:bg-gray-800 disabled:opacity-50"
-        >
-          {loading ? "…" : "Create account"}
-        </button>
-      </form>
-      <p className="text-sm">
-        Already have an account?{" "}
-        <Link className="underline font-bold" to="/login">
-          Login
-        </Link>
-      </p>
+    <div className="mx-auto flex min-h-[60vh] max-w-md flex-col justify-center px-4 py-12 sm:px-6">
+      <div className="rounded-2xl border border-outline-variant/10 bg-surface-container p-8 shadow-primaryGlow">
+        <h1 className="font-headline text-2xl font-extrabold tracking-tight text-on-surface">Create account</h1>
+        <p className="mt-1 text-sm text-on-surface-variant">Join ReelMaker</p>
+        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-on-surface" htmlFor="reg-email">
+              Email
+            </label>
+            <input
+              id="reg-email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={inputClass}
+              required
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-on-surface" htmlFor="reg-password">
+              Password
+            </label>
+            <input
+              id="reg-password"
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={inputClass}
+              required
+            />
+          </div>
+          {error ? (
+            <p className="rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-xl bg-gradient-to-r from-primary to-primary-dim py-3 font-headline text-sm font-bold text-on-surface shadow-lg shadow-primary/20 transition hover:brightness-110 disabled:opacity-50"
+            aria-busy={loading}
+          >
+            {loading ? "…" : "Create account"}
+          </button>
+        </form>
+        <p className="mt-6 text-center text-sm text-on-surface-variant">
+          Already have an account?{" "}
+          <Link className="font-bold text-primary hover:underline" to="/login">
+            Login
+          </Link>
+        </p>
+      </div>
     </div>
   );
 };

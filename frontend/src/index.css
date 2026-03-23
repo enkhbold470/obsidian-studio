@@ -2,11 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Always reserve vertical scrollbar gutter (dialogue grows; page scrolls). */
+/* Reserve vertical scrollbar gutter (dialogue grows; page scrolls). */
 html {
   overflow-y: scroll;
 }
 
+@layer base {
+  body {
+    @apply bg-background text-on-surface selection:bg-primary/30 selection:text-on-primary-fixed;
+  }
+}
+
+/* Dialogue editor scroll region — Obsidian dark scrollbar */
 .dlg-scroll {
   overflow: auto;
   overflow-x: auto;
@@ -20,10 +27,26 @@ html {
 }
 
 .dlg-scroll::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
+  @apply rounded bg-outline-variant/60;
 }
 
 .dlg-scroll::-webkit-scrollbar-track {
-  background: #f0f0f0;
+  @apply bg-surface-container-low;
+}
+
+.custom-scrollbar {
+  scrollbar-gutter: stable;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-surface-container-low;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-outline-variant/80;
 }
