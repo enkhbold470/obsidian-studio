@@ -1,5 +1,6 @@
 openai
 python-dotenv
+fish-audio-sdk
 flask
 flask-cors
 boto3

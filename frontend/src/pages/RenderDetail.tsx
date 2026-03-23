@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import type { AuthUser } from "../api";
 import { getMe, getUserRenders } from "../api";
+import { formatElapsedSeconds } from "../formatElapsed";
 
 export const RenderDetail = () => {
   const { userId, slug } = useParams<{ userId: string; slug: string }>();
@@ -9,6 +10,7 @@ export const RenderDetail = () => {
   const [me, setMe] = useState<AuthUser | null | undefined>(undefined);
   const [skipAuth, setSkipAuth] = useState(false);
   const [topic, setTopic] = useState<string | null>(null);
+  const [elapsedSec, setElapsedSec] = useState<number | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
@@ -35,6 +37,8 @@ export const RenderDetail = () => {
           return;
         }
         setTopic(hit.topic);
+        const es = hit.elapsedSeconds;
+        setElapsedSec(typeof es === "number" && Number.isFinite(es) ? es : null);
         setNotFound(false);
         setForbidden(false);
       })
@@ -92,6 +96,11 @@ export const RenderDetail = () => {
         )}
       </div>
       <h1 className="text-xl font-bold mb-2">{topic?.trim() || "Render"}</h1>
+      {elapsedSec != null ? (
+        <p className="text-sm text-gray-600 mb-2">
+          Render time: <span className="font-semibold">{formatElapsedSeconds(elapsedSec)}</span>
+        </p>
+      ) : null}
       <p className="text-sm text-gray-600 mb-4">
         Share this page:{" "}
         <code className="bg-gray-100 px-1 break-all">{typeof window !== "undefined" ? window.location.href : ""}</code>

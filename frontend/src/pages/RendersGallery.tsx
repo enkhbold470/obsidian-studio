@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import type { AuthUser } from "../api";
 import { getMe, getUserRenders, logout, patchMe, type HistoryItem } from "../api";
+import { formatElapsedSeconds } from "../formatElapsed";
 
 export const RendersGallery = () => {
   const { userId } = useParams<{ userId: string }>();
@@ -139,6 +140,11 @@ export const RendersGallery = () => {
               <div className="p-2 text-sm">
                 <p className="font-bold truncate">{h.topic?.trim() || "Untitled"}</p>
                 <p className="text-gray-600 text-xs">{new Date(h.createdAt).toLocaleString()}</p>
+                {h.elapsedSeconds != null && Number.isFinite(h.elapsedSeconds) ? (
+                  <p className="text-gray-600 text-xs mt-0.5">
+                    Render: <span className="font-semibold">{formatElapsedSeconds(h.elapsedSeconds)}</span>
+                  </p>
+                ) : null}
               </div>
             </Link>
           ))}

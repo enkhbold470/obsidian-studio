@@ -19,8 +19,6 @@ load_dotenv(PROJECT_ROOT / ".env")
 from flask import Flask, jsonify, request, send_file, send_from_directory, session
 from flask_cors import CORS
 from werkzeug.exceptions import RequestEntityTooLarge
-from openai import OpenAI
-
 from backend.brainrot import (
     ASS_FONTS,
     Config,
@@ -28,6 +26,8 @@ from backend.brainrot import (
     TTS_MODELS,
     TTS_VOICES,
     generate_dialogue,
+    get_llm_client,
+    get_tts_client,
     is_valid_dialogue,
     run_pipeline,
 )
@@ -194,7 +194,7 @@ def api_script():
     lines_n = int(data.get("dialogue_lines", 8))
     gpt_model = data.get("gpt_model", "gpt-5.4")
     try:
-        lines = generate_dialogue(OpenAI(), topic, lines_n, gpt_model)
+        lines = generate_dialogue(get_llm_client(), topic, lines_n, gpt_model)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     if not is_valid_dialogue(lines):
@@ -358,6 +358,7 @@ def api_user_renders(user_id):
                     "outputFormat": r.output_format,
                     "bgSource": r.bg_source,
                     "createdAt": r.created_at.isoformat(),
+                    "elapsedSeconds": r.elapsed_seconds,
                     "watchUrl": f"/u/{user_id}/renders/{r.job_uid}",
                 }
                 for r in rows
@@ -395,6 +396,7 @@ def api_history():
                 "outputFormat": r.output_format,
                 "bgSource": r.bg_source,
                 "createdAt": r.created_at.isoformat(),
+                "elapsedSeconds": r.elapsed_seconds,
                 "watchUrl": f"/u/{int(sid)}/renders/{r.job_uid}",
             }
             for r in rows
@@ -488,9 +490,9 @@ def api_generate():
         font_size=int(data.get("font_size", 100)),
         text_color=data.get("text_color", "#FDE047"),
         outline_color=data.get("outline_color", "#000000"),
-        peter_voice=data.get("peter_voice", "echo"),
-        stewie_voice=data.get("stewie_voice", "alloy"),
-        tts_model=data.get("tts_model", "tts-1"),
+        peter_voice=data.get("peter_voice", "am_michael"),
+        stewie_voice=data.get("stewie_voice", "bm_george*0.7+af_bella*0.3"),
+        tts_model=data.get("tts_model", "kokoro"),
         gpt_model=data.get("gpt_model", "gpt-5.4"),
         output_format=out_ext,
     )
@@ -500,7 +502,7 @@ def api_generate():
             f"run_pipeline begin job_uid={uid} user_id={uid_user!r} out_key={out_key!r} "
             f"(elapsed {time.perf_counter() - t0:.2f}s)"
         )
-        run_pipeline(cfg, bg_path, out_path, OpenAI(), work_dir, PROJECT_ROOT)
+        run_pipeline(cfg, bg_path, out_path, get_llm_client(), get_tts_client(), work_dir, PROJECT_ROOT)
         _gen_print(f"run_pipeline done (elapsed {time.perf_counter() - t0:.2f}s), uploading output to S3 …")
         s3_storage.put_file(out_key, out_path)
         _gen_print(f"output uploaded to S3 (elapsed {time.perf_counter() - t0:.2f}s)")
@@ -525,6 +527,7 @@ def api_generate():
             bg_label = f"upload+library:{bg_uuid}"
 
         shutil.rmtree(work_dir, ignore_errors=True)
+        total_s = time.perf_counter() - t0
         insert_generation(
             user_id=uid_user,
             job_uid=uid,
@@ -533,10 +536,10 @@ def api_generate():
             topic=(data.get("topic", "") or "").strip(),
             dialogue=dialogue,
             bg_source=bg_label,
+            elapsed_seconds=total_s,
         )
-        total_s = time.perf_counter() - t0
         _gen_print(f"SUCCESS job_uid={uid} total_s={total_s:.2f}")
-        return jsonify({"ok": True, "file": f"/api/output/{uid}"})
+        return jsonify({"ok": True, "file": f"/api/output/{uid}", "elapsedSeconds": total_s})
     except Exception as e:
         _log.exception("generate failed: %s", e)
         print(f"[generate] EXCEPTION after {time.perf_counter() - t0:.2f}s: {e!r}", flush=True)

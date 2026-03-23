@@ -18,6 +18,7 @@ import {
   isValidDialogue,
   toPayloadLines,
 } from "../components/DialogueEditor";
+import { formatElapsedSeconds } from "../formatElapsed";
 
 type OptionsPayload = {
   tts_voices: string[];
@@ -58,10 +59,10 @@ export const Maker = () => {
   const [fontSize, setFontSize] = useState(100);
   const [textColor, setTextColor] = useState("#FDE047");
   const [outlineColor, setOutlineColor] = useState("#000000");
-  const [peterVoice, setPeterVoice] = useState("echo");
-  const [stewieVoice, setStewieVoice] = useState("alloy");
+  const [peterVoice, setPeterVoice] = useState("am_michael");
+  const [stewieVoice, setStewieVoice] = useState("bm_george*0.7+af_bella*0.3");
   const [gptModel, setGptModel] = useState("gpt-5.4");
-  const [ttsModel, setTtsModel] = useState("tts-1");
+  const [ttsModel, setTtsModel] = useState("kokoro");
 
   const [options, setOptions] = useState<OptionsPayload | null>(null);
   const [bgItems, setBgItems] = useState<BackgroundItem[]>([]);
@@ -73,6 +74,7 @@ export const Maker = () => {
 
   const [formError, setFormError] = useState("");
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  const [lastGenElapsedSec, setLastGenElapsedSec] = useState<number | null>(null);
   const [draftLoading, setDraftLoading] = useState(false);
   const [genLoading, setGenLoading] = useState(false);
   const [genProgress, setGenProgress] = useState(0);
@@ -300,6 +302,7 @@ export const Maker = () => {
     setGenUploadPct(useUploadProgress ? 0 : null);
     setFormError("");
     setVideoSrc(null);
+    setLastGenElapsedSec(null);
     try {
       const bgMeta =
         bgPart instanceof File
@@ -320,6 +323,9 @@ export const Maker = () => {
       setGenProgress(100);
       const path = data.file as string;
       setVideoSrc(path.startsWith("/") ? path : `/api/output/${path}`);
+      if (typeof data.elapsedSeconds === "number" && Number.isFinite(data.elapsedSeconds)) {
+        setLastGenElapsedSec(data.elapsedSeconds);
+      }
       refreshBackgrounds();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "failed");
@@ -600,7 +606,7 @@ export const Maker = () => {
               onChange={(e) => setPeterVoice(e.target.value)}
               className="w-full border-2 border-black p-2"
             >
-              {(options?.tts_voices ?? ["echo"]).map((v) => (
+              {(options?.tts_voices ?? ["am_michael", "bm_george", "bm_george*0.7+af_bella*0.3"]).map((v) => (
                 <option key={v} value={v}>
                   {v}
                 </option>
@@ -615,7 +621,7 @@ export const Maker = () => {
               onChange={(e) => setStewieVoice(e.target.value)}
               className="w-full border-2 border-black p-2"
             >
-              {(options?.tts_voices ?? ["alloy"]).map((v) => (
+              {(options?.tts_voices ?? ["am_michael", "bm_george", "bm_george*0.7+af_bella*0.3"]).map((v) => (
                 <option key={`s-${v}`} value={v}>
                   {v}
                 </option>
@@ -709,6 +715,11 @@ export const Maker = () => {
 
         {videoSrc ? (
           <div className="pt-2">
+            {lastGenElapsedSec != null ? (
+              <p className="text-sm text-gray-700 mb-2" aria-live="polite">
+                Render time: <span className="font-bold">{formatElapsedSeconds(lastGenElapsedSec)}</span>
+              </p>
+            ) : null}
             <video key={videoSrc} controls className="w-full border-2 border-black max-h-[70vh]" src={videoSrc} />
           </div>
         ) : null}
