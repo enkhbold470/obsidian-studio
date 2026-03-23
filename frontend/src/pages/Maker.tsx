@@ -418,26 +418,31 @@ export const Maker = () => {
             subs + mux.
           </p>
         </div>
-        <div>
-          <label className="block font-bold">Dialogue lines (AI draft)</label>
-          <input
-            name="dialogue_lines"
-            type="number"
-            value={dialogueLines}
-            min={2}
-            max={20}
-            onChange={(e) => setDialogueLines(Number(e.target.value))}
-            className="mt-1 w-full max-w-xs border-2 border-black p-2"
-          />
-          <p className="text-sm text-gray-600 mt-1">Used when you click “Draft script with AI”.</p>
-        </div>
 
-        <div>
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-end gap-3 sm:gap-4 border-2 border-black p-3 bg-gray-50">
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor="dialogue_lines" className="font-bold text-sm whitespace-nowrap">
+              Dialogue lines (AI draft)
+            </label>
+            <input
+              id="dialogue_lines"
+              name="dialogue_lines"
+              type="number"
+              value={dialogueLines}
+              min={2}
+              max={20}
+              onChange={(e) => setDialogueLines(Number(e.target.value))}
+              className="w-16 border-2 border-black p-2 text-center"
+            />
+          </div>
+          <p className="text-sm text-gray-600 flex-1 min-w-[10rem] self-center sm:self-auto">
+            Used when you click “Draft script with AI”.
+          </p>
           <button
             type="button"
             onClick={handleDraftScript}
             disabled={draftLoading}
-            className="inline-flex items-center gap-2 border-2 border-black px-4 py-2 font-bold hover:bg-gray-100 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 border-2 border-black px-4 py-2 font-bold bg-white hover:bg-gray-100 disabled:opacity-50 shrink-0"
           >
             {draftLoading ? <Spinner /> : null}
             Draft script with AI
@@ -497,183 +502,191 @@ export const Maker = () => {
               onChange={handleBgUploadChange}
               className="w-full border-2 border-black p-2"
             />
-            <label className="block text-sm font-bold" htmlFor="lib-upload">
-              Add to library only
-            </label>
-            {libraryUploadPct !== null ? (
-              <div
-                className="mb-2 h-2 w-full border border-black bg-gray-200"
-                role="progressbar"
-                aria-valuenow={libraryUploadPct}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label="Library upload progress"
-              >
-                <div
-                  className="h-full bg-black transition-[width] duration-150"
-                  style={{ width: `${libraryUploadPct}%` }}
-                />
-              </div>
-            ) : null}
-            <input
-              id="lib-upload"
-              type="file"
-              accept="video/*"
-              onChange={handleUploadToLibrary}
-              disabled={libraryUploadPct !== null}
-              className="w-full border-2 border-dashed border-gray-400 p-2 text-sm"
-            />
           </div>
           <input type="hidden" name="bg_saved_id" value={savedBgId} readOnly />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block font-bold">TTS speed</label>
-            <input
-              name="tts_speed"
-              type="number"
-              step={0.1}
-              value={ttsSpeed}
-              min={0.5}
-              max={2}
-              onChange={(e) => setTtsSpeed(Number(e.target.value))}
-              className="w-full border-2 border-black p-2"
-            />
-          </div>
-          <div>
-            <label className="block font-bold">Shake speed (lower=slower)</label>
-            <input
-              name="shake_speed"
-              type="number"
-              value={shakeSpeed}
-              min={5}
-              max={50}
-              onChange={(e) => setShakeSpeed(Number(e.target.value))}
-              className="w-full border-2 border-black p-2"
-            />
-          </div>
-        </div>
+        <details className="border-2 border-black rounded-sm">
+          <summary className="cursor-pointer font-bold px-3 py-2 bg-gray-100 hover:bg-gray-200 select-none">
+            Advanced options
+          </summary>
+          <div className="p-3 pt-4 space-y-4 border-t-2 border-black">
+            <p className="text-xs text-gray-600 -mt-1 mb-1">
+              Collapsed = use built-in defaults. Open to change library upload, timing, look, and voices.
+            </p>
+            <div>
+              <label className="block text-sm font-bold mb-1" htmlFor="lib-upload">
+                Add to library only
+              </label>
+              {libraryUploadPct !== null ? (
+                <div
+                  className="mb-2 h-2 w-full border border-black bg-gray-200"
+                  role="progressbar"
+                  aria-valuenow={libraryUploadPct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label="Library upload progress"
+                >
+                  <div
+                    className="h-full bg-black transition-[width] duration-150"
+                    style={{ width: `${libraryUploadPct}%` }}
+                  />
+                </div>
+              ) : null}
+              <input
+                id="lib-upload"
+                type="file"
+                accept="video/*"
+                onChange={handleUploadToLibrary}
+                disabled={libraryUploadPct !== null}
+                className="w-full border-2 border-dashed border-gray-400 p-2 text-sm"
+              />
+            </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block font-bold">Output</label>
-            <select
-              name="output_format"
-              value={outputFormat}
-              onChange={(e) => setOutputFormat(e.target.value)}
-              className="w-full border-2 border-black p-2"
-            >
-              <option value="mp4">MP4</option>
-              <option value="mkv">MKV</option>
-            </select>
-          </div>
-        </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-bold">TTS speed</label>
+                <input
+                  name="tts_speed"
+                  type="number"
+                  step={0.1}
+                  value={ttsSpeed}
+                  min={0.5}
+                  max={2}
+                  onChange={(e) => setTtsSpeed(Number(e.target.value))}
+                  className="w-full border-2 border-black p-2"
+                />
+              </div>
+              <div>
+                <label className="block font-bold">Shake speed (lower=slower)</label>
+                <input
+                  name="shake_speed"
+                  type="number"
+                  value={shakeSpeed}
+                  min={5}
+                  max={50}
+                  onChange={(e) => setShakeSpeed(Number(e.target.value))}
+                  className="w-full border-2 border-black p-2"
+                />
+              </div>
+            </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block font-bold">Font</label>
-            <select
-              name="font_name"
-              value={fontName}
-              onChange={(e) => setFontName(e.target.value)}
-              className="w-full border-2 border-black p-2"
-            >
-              {(options?.fonts ?? ["Arial"]).map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block font-bold">Font size</label>
-            <input
-              name="font_size"
-              type="number"
-              value={fontSize}
-              min={40}
-              max={200}
-              onChange={(e) => setFontSize(Number(e.target.value))}
-              className="w-full border-2 border-black p-2"
-            />
-          </div>
-        </div>
+            <div>
+              <label className="block font-bold">Output</label>
+              <select
+                name="output_format"
+                value={outputFormat}
+                onChange={(e) => setOutputFormat(e.target.value)}
+                className="w-full max-w-xs border-2 border-black p-2"
+              >
+                <option value="mp4">MP4</option>
+                <option value="mkv">MKV</option>
+              </select>
+            </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block font-bold">Text color</label>
-            <input
-              name="text_color"
-              type="color"
-              value={textColor}
-              onChange={(e) => setTextColor(e.target.value)}
-              className="w-full h-10 border-2 border-black cursor-pointer"
-            />
-          </div>
-          <div>
-            <label className="block font-bold">Outline color</label>
-            <input
-              name="outline_color"
-              type="color"
-              value={outlineColor}
-              onChange={(e) => setOutlineColor(e.target.value)}
-              className="w-full h-10 border-2 border-black cursor-pointer"
-            />
-          </div>
-        </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-bold">Font</label>
+                <select
+                  name="font_name"
+                  value={fontName}
+                  onChange={(e) => setFontName(e.target.value)}
+                  className="w-full border-2 border-black p-2"
+                >
+                  {(options?.fonts ?? ["Arial"]).map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block font-bold">Font size</label>
+                <input
+                  name="font_size"
+                  type="number"
+                  value={fontSize}
+                  min={40}
+                  max={200}
+                  onChange={(e) => setFontSize(Number(e.target.value))}
+                  className="w-full border-2 border-black p-2"
+                />
+              </div>
+            </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block font-bold">Peter voice</label>
-            <select
-              name="peter_voice"
-              value={peterVoice}
-              onChange={(e) => setPeterVoice(e.target.value)}
-              className="w-full border-2 border-black p-2"
-            >
-              {(options?.tts_voices ?? ["am_michael", "bm_george", "bm_george*0.7+af_bella*0.3"]).map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block font-bold">Stewie voice</label>
-            <select
-              name="stewie_voice"
-              value={stewieVoice}
-              onChange={(e) => setStewieVoice(e.target.value)}
-              className="w-full border-2 border-black p-2"
-            >
-              {(options?.tts_voices ?? ["am_michael", "bm_george", "bm_george*0.7+af_bella*0.3"]).map((v) => (
-                <option key={`s-${v}`} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-bold">Text color</label>
+                <input
+                  name="text_color"
+                  type="color"
+                  value={textColor}
+                  onChange={(e) => setTextColor(e.target.value)}
+                  className="w-full h-10 border-2 border-black cursor-pointer"
+                />
+              </div>
+              <div>
+                <label className="block font-bold">Outline color</label>
+                <input
+                  name="outline_color"
+                  type="color"
+                  value={outlineColor}
+                  onChange={(e) => setOutlineColor(e.target.value)}
+                  className="w-full h-10 border-2 border-black cursor-pointer"
+                />
+              </div>
+            </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          
-          <div>
-            <label className="block font-bold">TTS model</label>
-            <select
-              name="tts_model"
-              value={ttsModel}
-              onChange={(e) => setTtsModel(e.target.value)}
-              className="w-full border-2 border-black p-2"
-            >
-              {(options?.tts_models ?? [ttsModel]).map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-bold">Peter voice</label>
+                <select
+                  name="peter_voice"
+                  value={peterVoice}
+                  onChange={(e) => setPeterVoice(e.target.value)}
+                  className="w-full border-2 border-black p-2"
+                >
+                  {(options?.tts_voices ?? ["am_michael", "bm_george", "bm_george*0.7+af_bella*0.3"]).map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block font-bold">Stewie voice</label>
+                <select
+                  name="stewie_voice"
+                  value={stewieVoice}
+                  onChange={(e) => setStewieVoice(e.target.value)}
+                  className="w-full border-2 border-black p-2"
+                >
+                  {(options?.tts_voices ?? ["am_michael", "bm_george", "bm_george*0.7+af_bella*0.3"]).map((v) => (
+                    <option key={`s-${v}`} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-bold">TTS model</label>
+              <select
+                name="tts_model"
+                value={ttsModel}
+                onChange={(e) => setTtsModel(e.target.value)}
+                className="w-full max-w-md border-2 border-black p-2"
+              >
+                {(options?.tts_models ?? [ttsModel]).map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
+        </details>
 
         {genUploadPct !== null ? (
           <div className="mb-2">
