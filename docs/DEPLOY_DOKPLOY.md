@@ -18,7 +18,7 @@ Recommended layout: **two applications** — API (this repo’s `Dockerfile`) an
 
 4. **MinIO / S3**: Set `S3_ENDPOINT_URL`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET` as in `docker-compose.yml` when using object storage.
 
-5. Opening `/` without a baked-in SPA returns JSON `503` with a hint — that is expected when only the API is deployed.
+5. **`GET /`** returns a welcome JSON payload; **`GET /health`** is for load balancers. Routes like `/login` without a built SPA still return `503` JSON (use the separate frontend app).
 
 ## Frontend (separate Dokploy app or static host)
 
@@ -43,7 +43,7 @@ Recommended layout: **two applications** — API (this repo’s `Dockerfile`) an
 
 ## Health check
 
-Dokploy can HTTP-check `GET /api/options` (returns JSON) on the internal port.
+Use **`GET /health`**: returns `{"status":"healthy","checks":{...}}` with HTTP 200 when Postgres responds; **503** if the database is unreachable. `GET /` returns a small welcome JSON (service name and links).
 
 ## Smoke test after deploy
 
@@ -53,7 +53,7 @@ Dokploy can HTTP-check `GET /api/options` (returns JSON) on the internal port.
 
 ## Troubleshooting
 
-- **503 JSON on API root**: Normal when no SPA is bundled; use the separate frontend.
+- **503 JSON on `/login` etc.**: Normal when no SPA is bundled; open the separate frontend URL instead.
 - **CORS errors**: Add the exact SPA `Origin` to `CORS_ORIGINS`; rebuild the SPA with correct `VITE_API_BASE_URL`.
 - **`OPENAI_API_KEY not set`**: Missing env in Dokploy service.
 - **FFmpeg errors**: Base image installs distro `ffmpeg`.

@@ -12,6 +12,7 @@ from functools import wraps
 from pathlib import Path
 
 from dotenv import load_dotenv
+from sqlalchemy import text
 from backend.paths import PROJECT_ROOT
 
 load_dotenv(PROJECT_ROOT / ".env")
@@ -33,6 +34,7 @@ from backend.brainrot import (
     is_valid_dialogue,
     run_pipeline,
 )
+from backend.db.session import SessionLocal
 from backend.db import (
     create_user,
     delete_user_background,
@@ -95,6 +97,45 @@ def handle_request_entity_too_large(_e: RequestEntityTooLarge):
             )
         }
     ), 413
+
+
+@app.route("/")
+def root_welcome():
+    return jsonify(
+        {
+            "message": "Welcome to ReelMaker API",
+            "service": "brainrot",
+            "api": "/api",
+            "health": "/health",
+        }
+    )
+
+
+@app.route("/health")
+def health():
+    checks: dict[str, object] = {"database": False}
+    try:
+        with SessionLocal() as s:
+            s.execute(text("SELECT 1"))
+        checks["database"] = True
+    except Exception as e:
+        _log.warning("health check: database failed: %s", e)
+        checks["error"] = str(e)[:200]
+        return jsonify(
+            {
+                "status": "unhealthy",
+                "message": "Database unavailable",
+                "checks": checks,
+            }
+        ), 503
+
+    checks["s3_configured"] = s3_storage.is_enabled()
+    return jsonify(
+        {
+            "status": "healthy",
+            "checks": checks,
+        }
+    )
 
 
 def skip_auth() -> bool:
@@ -616,19 +657,16 @@ def _serve_spa(path: str):
     return send_from_directory(DIST_DIR, "index.html")
 
 
-@app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
 def spa(path):
     if not DIST_DIR.is_dir() or not (DIST_DIR / "index.html").is_file():
         return (
-            # jsonify({
-            #     "error": "No SPA in this image. Deploy the frontend separately; API is at /api/*",
-            #     "hint": "Set CORS_ORIGINS to your SPA origin; use VITE_API_BASE_URL on the client.",
-            # }),        
-            jsonify({
-                "error": "welcome to the obsidian studio api",
-                "hint": "more details: https://github.com/enkhbold470/obsidian-studio",
-            }),
+            jsonify(
+                {
+                    "error": "No SPA in this image. Deploy the frontend separately; API is at /api/*",
+                    "hint": "Set CORS_ORIGINS to your SPA origin; use VITE_API_BASE_URL on the client.",
+                }
+            ),
             503,
         )
     return _serve_spa(path)
