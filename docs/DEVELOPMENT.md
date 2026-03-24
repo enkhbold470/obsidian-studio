@@ -30,9 +30,9 @@ uv run python -m backend.main
 
 Schema changes: edit SQLAlchemy models in `backend/db/models.py`, then `alembic revision --autogenerate -m "describe"` (or hand-write a revision), and apply with `alembic upgrade head` or rely on app startup (`init_db()` runs Alembic to `head`).
 
-API: `http://127.0.0.1:5001/api/options`
+API: `http://127.0.0.1:5001/api/options` — also `GET /` (welcome JSON) and `GET /health` (DB liveness).
 
-Without a built `frontend/dist`, opening `http://127.0.0.1:5001/` returns JSON (API-only mode). Use Vite dev or deploy the SPA separately with `VITE_API_BASE_URL` + `CORS_ORIGINS` when needed.
+Without a built `frontend/dist`, `http://127.0.0.1:5001/` still returns welcome JSON; client routes (`/login`, …) return `503` JSON unless you serve a SPA. Use Vite dev or deploy the SPA separately with `VITE_API_BASE_URL` + `CORS_ORIGINS` when needed.
 
 ## Frontend (Vite)
 
