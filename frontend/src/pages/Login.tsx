@@ -36,7 +36,7 @@ export const Login = () => {
       <Card>
         <CardHeader>
           <CardTitle>Welcome back</CardTitle>
-          <CardDescription>Sign in to ReelMaker</CardDescription>
+          <CardDescription>Sign in to Obsidian Studio</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

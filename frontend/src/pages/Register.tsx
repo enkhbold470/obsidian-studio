@@ -40,7 +40,7 @@ export const Register = () => {
       <Card>
         <CardHeader>
           <CardTitle>Create account</CardTitle>
-          <CardDescription>Join ReelMaker</CardDescription>
+          <CardDescription>Join Obsidian Studio</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
