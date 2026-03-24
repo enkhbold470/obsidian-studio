@@ -1,7 +1,35 @@
 const jsonHeaders = { "Content-Type": "application/json" };
 
-/** No trailing slash. Empty = same-origin (Vite dev proxy) or reverse-proxy to API. */
-export const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+/**
+ * No trailing slash.
+ * - `VITE_API_BASE_URL` wins when set (any deployment).
+ * - Otherwise in Vite **dev** (`bun run dev`): empty → same-origin `/api` via proxy.
+ * - Otherwise in the **browser** (production build): `https://api.<current-hostname>` so
+ *   `obsidian-studio.dok.inkyg.com` → `https://api.obsidian-studio.dok.inkyg.com` without rebuilding.
+ * - `localhost` / `127.0.0.1`: empty (use proxy or set `VITE_API_BASE_URL` explicitly).
+ */
+function resolveApiBase(): string {
+  const fromEnv = (import.meta.env.VITE_API_BASE_URL ?? "").trim().replace(/\/$/, "");
+  if (fromEnv) {
+    return fromEnv;
+  }
+  if (import.meta.env.DEV) {
+    return "";
+  }
+  if (typeof window === "undefined") {
+    return "";
+  }
+  const { hostname, protocol } = window.location;
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    return "";
+  }
+  if (hostname.startsWith("api.")) {
+    return "";
+  }
+  return `${protocol}//api.${hostname}`;
+}
+
+export const API_BASE = resolveApiBase();
 
 /** Prefix a path like `/api/...` with the configured API origin for split deployments. */
 export const apiUrl = (path: string): string => {
@@ -25,7 +53,7 @@ export const readJsonOrExplain = async <T>(r: Response): Promise<T> => {
   const text = await r.text();
   if (LOOKS_LIKE_HTML.test(text)) {
     throw new Error(
-      "Received HTML instead of JSON. Set VITE_API_BASE_URL to your API base URL when building the frontend (no trailing slash), and add this site’s origin to backend CORS_ORIGINS."
+      "Received HTML instead of JSON — API requests are hitting the static site. Set VITE_API_BASE_URL to your API origin, or use hostname api.<this-host> with CORS_ORIGINS including this page’s origin."
     );
   }
   try {

@@ -32,14 +32,18 @@ export const RenderDetail = () => {
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    getMe().then((j) => {
-      if (j.skipAuth) {
-        setSkipAuth(true);
+    getMe()
+      .then((j) => {
+        if (j.skipAuth) {
+          setSkipAuth(true);
+          setMe(null);
+        } else {
+          setMe(j.user);
+        }
+      })
+      .catch(() => {
         setMe(null);
-      } else {
-        setMe(j.user);
-      }
-    });
+      });
   }, []);
 
   useEffect(() => {

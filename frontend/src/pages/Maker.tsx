@@ -123,6 +123,10 @@ export const Maker = () => {
         } else {
           setUser(null);
         }
+      } catch {
+        if (!cancelled) {
+          setUser(null);
+        }
       } finally {
         if (!cancelled) {
           setAuthLoading(false);
@@ -152,6 +156,7 @@ export const Maker = () => {
         }
       }
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount; reconcile voice/model defaults when /api/options returns
   }, []);
 
   useEffect(() => {

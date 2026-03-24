@@ -20,17 +20,23 @@ export const AppHeader = () => {
 
   useEffect(() => {
     let cancelled = false;
-    getMe().then((j) => {
-      if (cancelled) {
-        return;
-      }
-      if (j.skipAuth) {
-        setSkipAuth(true);
-        setMe(null);
-      } else {
-        setMe(j.user ?? null);
-      }
-    });
+    getMe()
+      .then((j) => {
+        if (cancelled) {
+          return;
+        }
+        if (j.skipAuth) {
+          setSkipAuth(true);
+          setMe(null);
+        } else {
+          setMe(j.user ?? null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMe(null);
+        }
+      });
     return () => {
       cancelled = true;
     };

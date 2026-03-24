@@ -22,8 +22,8 @@ export const Register = () => {
     setLoading(true);
     try {
       const data = await register(email, password);
-      if (data.error) {
-        toast.error(String(data.error));
+      if ((data as { error?: string }).error) {
+        toast.error(String((data as { error?: string })?.error));
         return;
       }
       toast.success("Account created");
