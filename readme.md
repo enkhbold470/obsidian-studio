@@ -19,7 +19,7 @@ Generate vertical “brainrot” debate clips: AI-written Peter vs Stewie dialog
 4. Install backend deps and run API: see **`docs/DEVELOPMENT.md`**.
 5. In another terminal: `cd frontend && bun install && bun run dev` → open the printed local URL.
 
-Production-like single server: build the frontend (`bun run build`), then `python -m backend.main` serves both UI and `/api/*`.
+Production options: (1) build the frontend (`cd frontend && bun run build`) and run `python -m backend.main` with `frontend/dist` present to serve UI + `/api/*`; or (2) deploy the **API Docker image** and host the SPA separately — set `VITE_API_BASE_URL` and backend `CORS_ORIGINS` (see **`docs/DEPLOY_DOKPLOY.md`**).
 
 ## CLI
 

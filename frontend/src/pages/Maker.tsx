@@ -1,9 +1,11 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const SCRIPT_READY_KEY = "reelmaker-script-ready";
 import type { AuthUser, BackgroundItem, DialogueLine } from "../api";
 import {
+  apiUrl,
   deleteBackground,
   getBackgrounds,
   getMe,
@@ -19,6 +21,10 @@ import {
   isValidDialogue,
   toPayloadLines,
 } from "../components/DialogueEditor";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { formatElapsedSeconds } from "../formatElapsed";
 import { inputClass, panelClass, panelMutedClass, selectClass } from "../lib/obsidianStyles";
 
@@ -74,7 +80,6 @@ export const Maker = () => {
 
   const [lines, setLines] = useState<DialogueLine[]>([{ speaker: "Peter", text: "" }]);
 
-  const [formError, setFormError] = useState("");
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [lastGenElapsedSec, setLastGenElapsedSec] = useState<number | null>(null);
   const [draftLoading, setDraftLoading] = useState(false);
@@ -215,7 +220,6 @@ export const Maker = () => {
       t = topic.trim();
     }
     setDraftLoading(true);
-    setFormError("");
     try {
       const data = await postScript({
         topic: t,
@@ -229,7 +233,7 @@ export const Maker = () => {
       setLines(d.length ? d : [{ speaker: "Peter", text: "" }]);
       persistScriptReady();
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "Draft failed");
+      toast.error(e instanceof Error ? e.message : "Draft failed");
     } finally {
       setDraftLoading(false);
     }
@@ -263,7 +267,7 @@ export const Maker = () => {
         setSavedBgId("");
       }
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "Delete failed");
+      toast.error(e instanceof Error ? e.message : "Delete failed");
     }
   };
 
@@ -272,7 +276,6 @@ export const Maker = () => {
     if (!f) {
       return;
     }
-    setFormError("");
     setLibraryUploadPct(0);
     try {
       await uploadBackgroundWithProgress(f, (loaded, total) => {
@@ -280,7 +283,7 @@ export const Maker = () => {
       });
       refreshBackgrounds();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Upload failed");
+      toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setLibraryUploadPct(null);
     }
@@ -292,17 +295,17 @@ export const Maker = () => {
       e.preventDefault();
       const payload = toPayloadLines(lines);
       if (!isValidDialogue(payload)) {
-        setFormError("Add at least one dialogue line with text (or draft with AI).");
+        toast.error("Add at least one dialogue line with text (or draft with AI).");
         return null;
       }
       const hasUpload = Boolean(bgFile);
       const hasSaved = Boolean(savedBgId.trim());
       if (!hasUpload && !hasSaved) {
-        setFormError("Select a saved background or upload a video file.");
+        toast.error("Select a saved background or upload a video file.");
         return null;
       }
       if (hasUpload && hasSaved) {
-        setFormError("Use either a saved background or a new file, not both.");
+        toast.error("Use either a saved background or a new file, not both.");
         return null;
       }
       const fd = new FormData(e.currentTarget);
@@ -337,7 +340,6 @@ export const Maker = () => {
     setGenLoading(true);
     setGenProgress(0);
     setGenUploadPct(useUploadProgress ? 0 : null);
-    setFormError("");
     setVideoSrc(null);
     setLastGenElapsedSec(null);
     try {
@@ -359,14 +361,15 @@ export const Maker = () => {
       }
       setGenProgress(100);
       const path = data.file as string;
-      setVideoSrc(path.startsWith("/") ? path : `/api/output/${path}`);
+      setVideoSrc(apiUrl(path.startsWith("/") ? path : `/api/output/${path}`));
       if (typeof data.elapsedSeconds === "number" && Number.isFinite(data.elapsedSeconds)) {
         setLastGenElapsedSec(data.elapsedSeconds);
       }
       persistScriptReady();
       refreshBackgrounds();
+      toast.success("Video ready");
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "failed");
+      toast.error(err instanceof Error ? err.message : "failed");
     } finally {
       setGenLoading(false);
       setGenUploadPct(null);
@@ -376,7 +379,7 @@ export const Maker = () => {
 
   if (authLoading) {
     return (
-      <div className="px-6 py-16 text-center text-on-surface-variant" aria-live="polite">
+      <div className="px-6 py-16 text-center text-muted-foreground" aria-live="polite">
         Loading…
       </div>
     );
@@ -388,10 +391,10 @@ export const Maker = () => {
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-4">
       <div className="mb-6 lg:mb-4">
-        <h1 className="font-headline text-3xl font-extrabold tracking-tight text-on-surface md:text-4xl">
+        <h1 className="font-headline text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
           Editor
         </h1>
-        <p className="mt-1 text-sm text-on-surface-variant">
+        <p className="mt-1 text-sm text-muted-foreground">
           Start with a topic, then draft your script. More steps unlock after your first successful draft.
         </p>
         {skipAuth ? (
@@ -404,13 +407,13 @@ export const Maker = () => {
         ) : null}
       </div>
 
-      <form className="divide-y divide-outline-variant/10" onSubmit={handleFormSubmit}>
+      <form className="divide-y divide-border" onSubmit={handleFormSubmit}>
         <section aria-label="Topic and draft" className="space-y-4 py-6">
           <div className="flex flex-col gap-6 lg:grid lg:grid-cols-12 lg:items-start lg:gap-6">
             <div className="space-y-2 lg:col-span-4">
-              <label className="block font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+              <Label className="font-label text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 AI model (draft script)
-              </label>
+              </Label>
               <select
                 name="gpt_model"
                 value={gptModel}
@@ -423,30 +426,31 @@ export const Maker = () => {
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-on-surface-variant">Used for “Draft script with AI” only.</p>
+              <p className="text-xs text-muted-foreground">Used for “Draft script with AI” only.</p>
             </div>
             <div className="space-y-2 lg:col-span-5">
-              <label className="block font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+              <Label htmlFor="topic-field" className="font-label text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Topic (for AI script draft)
-              </label>
-              <textarea
+              </Label>
+              <Textarea
+                id="topic-field"
                 name="topic"
                 rows={3}
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 placeholder="Paste a paragraph / dump for the debate topic…"
-                className={`${inputClass} min-h-20 resize-y`}
+                className="min-h-20 resize-y"
               />
-              <p className="text-xs text-on-surface-variant">
-                <strong className="text-on-surface">Draft</strong> uses line count; <strong className="text-on-surface">Generate</strong> runs TTS + subs + mux.
+              <p className="text-xs text-muted-foreground">
+                <strong className="text-foreground">Draft</strong> uses line count; <strong className="text-foreground">Generate</strong> runs TTS + subs + mux.
               </p>
             </div>
-            <div className="flex flex-col gap-3 border-outline-variant/10 lg:col-span-3 lg:border-l lg:pl-6">
+            <div className="flex flex-col gap-3 border-border lg:col-span-3 lg:border-l lg:pl-6">
               <div className="flex flex-wrap items-center gap-2">
-                <label htmlFor="dialogue_lines" className="font-label text-sm font-bold text-on-surface">
+                <Label htmlFor="dialogue_lines" className="font-label text-sm font-bold">
                   Lines (AI draft)
-                </label>
-                <input
+                </Label>
+                <Input
                   id="dialogue_lines"
                   name="dialogue_lines"
                   type="number"
@@ -454,50 +458,46 @@ export const Maker = () => {
                   min={2}
                   max={20}
                   onChange={(e) => setDialogueLines(Number(e.target.value))}
-                  className="w-16 rounded-lg border border-outline-variant/20 bg-surface-container-lowest px-2 py-2 text-center text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-16 text-center"
                 />
               </div>
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={handleDraftScript}
                 disabled={draftLoading}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-outline-variant/20 bg-surface-container-highest px-4 py-2.5 font-label text-sm font-bold text-on-surface transition hover:bg-surface-bright disabled:opacity-50 lg:w-auto"
+                className="w-full lg:w-auto"
               >
                 {draftLoading ? <Spinner /> : null}
                 Draft script with AI
-              </button>
+              </Button>
             </div>
           </div>
         </section>
 
         {!scriptReady ? (
           <div className="space-y-3 py-6">
-            {formError ? (
-              <p className="rounded-xl border border-error/40 bg-error/10 px-4 py-3 text-sm text-error" role="alert">
-                {formError}
-              </p>
-            ) : null}
-            <p className="text-sm text-on-surface-variant">
-              Run <strong className="text-on-surface">Draft script with AI</strong> to unlock dialogue, background, and
+            <p className="text-sm text-muted-foreground">
+              Run <strong className="text-foreground">Draft script with AI</strong> to unlock dialogue, background, and
               render. Or continue without a draft if you already know your lines.
             </p>
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => {
-                setFormError("");
                 persistScriptReady();
               }}
-              className="rounded-xl border border-secondary/40 bg-surface-container px-4 py-2.5 text-sm font-bold text-secondary transition hover:bg-surface-container-highest"
+              className="border-secondary/50 text-secondary hover:bg-secondary/10"
             >
               Continue without draft — show dialogue &amp; background
-            </button>
+            </Button>
           </div>
         ) : null}
 
         {scriptReady ? (
           <>
         <section aria-label="Dialogue" className="space-y-3 py-6">
-          <h2 className="font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+          <h2 className="font-label text-xs font-bold uppercase tracking-wider text-muted-foreground">
             Dialogue
           </h2>
           <div className={panelClass}>
@@ -506,10 +506,10 @@ export const Maker = () => {
         </section>
 
         <section aria-label="Background video" className="space-y-4 py-6">
-          <h2 className="font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+          <h2 className="font-label text-xs font-bold uppercase tracking-wider text-muted-foreground">
             Background video
           </h2>
-          <p className="text-sm text-on-surface-variant">
+          <p className="text-sm text-muted-foreground">
             Uploads go to your library; generating from a new file also saves a copy.
           </p>
           {bgLoadErr ? (
@@ -524,7 +524,7 @@ export const Maker = () => {
                 className={`relative overflow-hidden rounded-xl border p-1 transition ${
                   savedBgId === b.id
                     ? "border-secondary ring-2 ring-secondary/40"
-                    : "border-outline-variant/15 hover:border-outline-variant/30"
+                    : "border-border/60 hover:border-border"
                 }`}
               >
                 <button
@@ -532,15 +532,15 @@ export const Maker = () => {
                   onClick={() => handlePickSaved(b.id)}
                   className="block w-full text-left"
                 >
-                  <div className="aspect-video overflow-hidden rounded-lg bg-surface-container-lowest">
+                  <div className="aspect-video overflow-hidden rounded-lg bg-muted/30">
                     <BgPreview item={b} />
                   </div>
-                  <p className="truncate p-2 font-mono text-xs text-on-surface-variant">{b.filename}</p>
+                  <p className="truncate p-2 font-mono text-xs text-muted-foreground">{b.filename}</p>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDeleteBg(b.id, b.filename)}
-                  className="absolute right-2 top-2 rounded-md border border-outline-variant/30 bg-surface-container px-2 py-0.5 text-xs font-bold text-error hover:bg-error/10"
+                  className="absolute right-2 top-2 rounded-md border border-border bg-card px-2 py-0.5 text-xs font-bold text-destructive hover:bg-destructive/10"
                   aria-label={`Delete ${b.filename}`}
                 >
                   ×
@@ -549,7 +549,7 @@ export const Maker = () => {
             ))}
           </div>
           <div className="space-y-2">
-            <label className="block text-sm font-bold text-on-surface" htmlFor="bg-upload">
+            <label className="block text-sm font-bold text-foreground" htmlFor="bg-upload">
               Upload for this render (saved to library after generate)
             </label>
             <input
@@ -565,22 +565,22 @@ export const Maker = () => {
         </section>
 
         <details className="group py-6">
-          <summary className="cursor-pointer list-none font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant transition hover:text-on-surface [&::-webkit-details-marker]:hidden">
-            <span className="inline-flex items-center gap-2 rounded-lg border border-outline-variant/15 bg-surface-container-low px-4 py-2">
+          <summary className="cursor-pointer list-none font-label text-xs font-bold uppercase tracking-wider text-muted-foreground transition hover:text-foreground [&::-webkit-details-marker]:hidden">
+            <span className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-4 py-2">
               Advanced options
             </span>
           </summary>
-          <p className="mt-4 text-xs text-on-surface-variant">
+          <p className="mt-4 text-xs text-muted-foreground">
             Library upload, timing, output, look, and voices — defaults apply when collapsed.
           </p>
           <div className={`${panelMutedClass} mt-4 space-y-4`}>
             <div>
-              <label className="mb-2 block text-sm font-bold text-on-surface" htmlFor="lib-upload">
+              <label className="mb-2 block text-sm font-bold text-foreground" htmlFor="lib-upload">
                 Add to library only
               </label>
               {libraryUploadPct !== null ? (
                 <div
-                  className="mb-2 h-2 w-full overflow-hidden rounded-full bg-surface-container-highest"
+                  className="mb-2 h-2 w-full overflow-hidden rounded-full bg-muted"
                   role="progressbar"
                   aria-valuenow={libraryUploadPct}
                   aria-valuemin={0}
@@ -605,7 +605,7 @@ export const Maker = () => {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               <div>
-                <label className="mb-1 block font-bold text-on-surface">TTS speed</label>
+                <label className="mb-1 block font-bold text-foreground">TTS speed</label>
                 <input
                   name="tts_speed"
                   type="number"
@@ -618,7 +618,7 @@ export const Maker = () => {
                 />
               </div>
               <div>
-                <label className="mb-1 block font-bold text-on-surface">Shake speed</label>
+                <label className="mb-1 block font-bold text-foreground">Shake speed</label>
                 <input
                   name="shake_speed"
                   type="number"
@@ -630,7 +630,7 @@ export const Maker = () => {
                 />
               </div>
               <div>
-                <label className="mb-1 block font-bold text-on-surface">Output</label>
+                <label className="mb-1 block font-bold text-foreground">Output</label>
                 <select
                   name="output_format"
                   value={outputFormat}
@@ -642,7 +642,7 @@ export const Maker = () => {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block font-bold text-on-surface">TTS model</label>
+                <label className="mb-1 block font-bold text-foreground">TTS model</label>
                 <select
                   name="tts_model"
                   value={ttsModel}
@@ -657,7 +657,7 @@ export const Maker = () => {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block font-bold text-on-surface">Font</label>
+                <label className="mb-1 block font-bold text-foreground">Font</label>
                 <select
                   name="font_name"
                   value={fontName}
@@ -672,7 +672,7 @@ export const Maker = () => {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block font-bold text-on-surface">Font size</label>
+                <label className="mb-1 block font-bold text-foreground">Font size</label>
                 <input
                   name="font_size"
                   type="number"
@@ -684,27 +684,27 @@ export const Maker = () => {
                 />
               </div>
               <div>
-                <label className="mb-1 block font-bold text-on-surface">Text color</label>
+                <label className="mb-1 block font-bold text-foreground">Text color</label>
                 <input
                   name="text_color"
                   type="color"
                   value={textColor}
                   onChange={(e) => setTextColor(e.target.value)}
-                  className="h-11 w-full cursor-pointer rounded-xl border border-outline-variant/20 bg-surface-container-lowest"
+                  className="h-11 w-full cursor-pointer rounded-xl border border-border bg-muted/30"
                 />
               </div>
               <div>
-                <label className="mb-1 block font-bold text-on-surface">Outline color</label>
+                <label className="mb-1 block font-bold text-foreground">Outline color</label>
                 <input
                   name="outline_color"
                   type="color"
                   value={outlineColor}
                   onChange={(e) => setOutlineColor(e.target.value)}
-                  className="h-11 w-full cursor-pointer rounded-xl border border-outline-variant/20 bg-surface-container-lowest"
+                  className="h-11 w-full cursor-pointer rounded-xl border border-border bg-muted/30"
                 />
               </div>
               <div className="sm:col-span-2 lg:col-span-1">
-                <label className="mb-1 block font-bold text-on-surface">Peter voice</label>
+                <label className="mb-1 block font-bold text-foreground">Peter voice</label>
                 <select
                   name="peter_voice"
                   value={peterVoice}
@@ -719,7 +719,7 @@ export const Maker = () => {
                 </select>
               </div>
               <div className="sm:col-span-2 lg:col-span-1">
-                <label className="mb-1 block font-bold text-on-surface">Stewie voice</label>
+                <label className="mb-1 block font-bold text-foreground">Stewie voice</label>
                 <select
                   name="stewie_voice"
                   value={stewieVoice}
@@ -740,13 +740,13 @@ export const Maker = () => {
         <section aria-label="Generate" className="space-y-4 py-6">
           {genUploadPct !== null ? (
             <div>
-              <p className="text-xs font-bold text-on-surface-variant">
+              <p className="text-xs font-bold text-muted-foreground">
                 {genUploadPct < 100
                   ? `Uploading background… ${genUploadPct}%`
                   : "Upload complete — rendering on server…"}
               </p>
               <div
-                className="mt-1 h-2 w-full overflow-hidden rounded-full bg-surface-container-highest"
+                className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted"
                 role="progressbar"
                 aria-valuenow={genUploadPct}
                 aria-valuemin={0}
@@ -763,11 +763,11 @@ export const Maker = () => {
 
           <div className="flex flex-col gap-4 lg:grid lg:grid-cols-12 lg:gap-6 lg:items-start">
             <div className={videoSrc ? "space-y-4 lg:col-span-5" : "space-y-4 lg:col-span-12"}>
-              <div className="relative overflow-hidden rounded-xl border border-outline-variant/10 shadow-primaryGlow">
-                <button
+              <div className="relative overflow-hidden rounded-xl border border-border shadow-primaryGlow">
+                <Button
                   type="submit"
                   disabled={genLoading}
-                  className="relative z-10 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dim px-4 py-4 font-headline text-base font-bold text-on-surface shadow-lg shadow-primary/25 transition hover:brightness-110 disabled:opacity-70"
+                  className="relative z-10 h-auto w-full rounded-xl bg-gradient-to-r from-primary to-primary-dim px-4 py-4 font-headline text-base font-bold text-primary-foreground shadow-lg shadow-primary/25 hover:brightness-110 disabled:opacity-70"
                   aria-busy={genLoading}
                 >
                   {genLoading ? (
@@ -777,24 +777,19 @@ export const Maker = () => {
                   ) : (
                     "Generate video"
                   )}
-                </button>
+                </Button>
                 {genLoading && (genUploadPct === null || genUploadPct >= 100) ? (
                   <div
-                    className="absolute left-0 top-0 h-full bg-on-surface/15 transition-[width] duration-150"
+                    className="absolute left-0 top-0 h-full bg-foreground/10 transition-[width] duration-150"
                     style={{ width: `${genProgress}%` }}
                   />
                 ) : null}
               </div>
-              {formError ? (
-                <p className="rounded-xl border border-error/40 bg-error/10 px-4 py-3 text-sm text-error" role="alert">
-                  {formError}
-                </p>
-              ) : null}
             </div>
             {videoSrc ? (
-              <div className="overflow-hidden rounded-xl border border-outline-variant/10 bg-surface-container-low pt-2 shadow-primaryGlow lg:col-span-7">
+              <div className="overflow-hidden rounded-xl border border-border/50 bg-card pt-2 shadow-primaryGlow lg:col-span-7">
                 {lastGenElapsedSec != null ? (
-                  <p className="mb-3 px-2 text-sm text-on-surface-variant" aria-live="polite">
+                  <p className="mb-3 px-2 text-sm text-muted-foreground" aria-live="polite">
                     Render time:{" "}
                     <span className="font-bold text-secondary">{formatElapsedSeconds(lastGenElapsedSec)}</span>
                   </p>

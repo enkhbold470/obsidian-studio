@@ -1,8 +1,12 @@
 import { Film } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
 import type { AuthUser } from "../api";
-import { getMe, getUserRenders, patchMe, type HistoryItem } from "../api";
+import { apiUrl, getMe, getUserRenders, patchMe, type HistoryItem } from "../api";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { formatElapsedSeconds } from "../formatElapsed";
 import { panelClass } from "../lib/obsidianStyles";
 
@@ -26,7 +30,14 @@ export const RendersGallery = () => {
         setGalleryPublic(Boolean(d.galleryPublic));
         setErr(null);
       })
-      .catch((e: Error) => setErr(e.message));
+      .catch((e: Error) => {
+        if (e.message === "Forbidden") {
+          setErr("Forbidden");
+        } else {
+          toast.error(e.message || "Failed to load gallery");
+          setErr(null);
+        }
+      });
   }, [id]);
 
   useEffect(() => {
@@ -44,17 +55,16 @@ export const RendersGallery = () => {
     load();
   }, [load]);
 
-  const handleTogglePublic = async () => {
+  const handleTogglePublic = async (checked: boolean) => {
     if (!me || me.id !== id) {
       return;
     }
     setToggleLoading(true);
     try {
-      const next = !galleryPublic;
-      await patchMe({ galleryPublic: next });
-      setGalleryPublic(next);
+      await patchMe({ galleryPublic: checked });
+      setGalleryPublic(checked);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Toggle failed");
+      toast.error(e instanceof Error ? e.message : "Toggle failed");
     } finally {
       setToggleLoading(false);
     }
@@ -62,7 +72,7 @@ export const RendersGallery = () => {
 
   if (me === undefined && !skipAuth) {
     return (
-      <div className="px-6 py-16 text-center text-on-surface-variant" aria-live="polite">
+      <div className="px-6 py-16 text-center text-muted-foreground" aria-live="polite">
         Loading…
       </div>
     );
@@ -73,14 +83,11 @@ export const RendersGallery = () => {
   if (err === "Forbidden") {
     return (
       <div className="mx-auto max-w-lg px-6 py-16 text-center">
-        <p className="font-headline text-lg font-bold text-error">Gallery unavailable</p>
-        <p className="mt-2 text-sm text-on-surface-variant">This gallery is private or does not exist.</p>
-        <Link
-          className="mt-6 inline-block rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary transition hover:brightness-110"
-          to="/"
-        >
-          Back to maker
-        </Link>
+        <p className="font-headline text-lg font-bold text-destructive">Gallery unavailable</p>
+        <p className="mt-2 text-sm text-muted-foreground">This gallery is private or does not exist.</p>
+        <Button asChild className="mt-6">
+          <Link to="/">Back to maker</Link>
+        </Button>
       </div>
     );
   }
@@ -91,50 +98,46 @@ export const RendersGallery = () => {
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
       <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="font-headline text-3xl font-extrabold tracking-tight text-on-surface md:text-4xl">
+          <h1 className="font-headline text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
             {isOwner ? "Your renders" : "Gallery"}
           </h1>
-          <p className="mt-1 text-sm text-on-surface-variant">User #{id}</p>
+          <p className="mt-1 text-sm text-muted-foreground">User #{id}</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
           {isOwner ? (
-            <label
-              className={`flex cursor-pointer items-start gap-3 rounded-xl border border-outline-variant/10 bg-surface-container px-4 py-3 transition ${toggleLoading ? "opacity-60" : ""}`}
+            <div
+              className={`flex max-w-md cursor-pointer items-start gap-3 rounded-xl border border-border bg-card px-4 py-3 text-card-foreground shadow-sm transition ${toggleLoading ? "opacity-60" : ""}`}
             >
-              <input
-                type="checkbox"
+              <Checkbox
+                id="gallery-public"
                 checked={galleryPublic}
                 disabled={toggleLoading}
-                onChange={handleTogglePublic}
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-outline-variant text-primary focus:ring-primary"
+                onCheckedChange={(v) => {
+                  if (v === "indeterminate") {
+                    return;
+                  }
+                  void handleTogglePublic(v);
+                }}
+                className="mt-0.5"
                 aria-label="Public gallery"
               />
-              <span className="text-sm text-on-surface-variant">
+              <Label htmlFor="gallery-public" className="cursor-pointer text-sm font-normal leading-snug text-muted-foreground">
                 Public gallery — anyone with the link can view videos
-              </span>
-            </label>
+              </Label>
+            </div>
           ) : null}
         </div>
       </div>
 
-      {err && err !== "Forbidden" ? (
-        <p className="mb-6 rounded-xl border border-error/30 bg-error/10 px-4 py-3 text-sm text-error" role="alert">
-          {err}
-        </p>
-      ) : null}
-
       {items.length === 0 ? (
         <div className={panelClass}>
           <div className="flex flex-col items-center gap-3 py-12 text-center">
-            <Film className="h-12 w-12 text-on-surface-variant/40" aria-hidden />
-            <p className="text-on-surface-variant">No renders yet.</p>
+            <Film className="h-12 w-12 text-muted-foreground/40" aria-hidden />
+            <p className="text-muted-foreground">No renders yet.</p>
             {isOwner ? (
-              <Link
-                to="/"
-                className="mt-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary transition hover:brightness-110"
-              >
-                Open editor
-              </Link>
+              <Button asChild className="mt-2">
+                <Link to="/">Open editor</Link>
+              </Button>
             ) : null}
           </div>
         </div>
@@ -144,26 +147,26 @@ export const RendersGallery = () => {
             <Link
               key={h.jobUid}
               to={`/u/${id}/renders/${h.jobUid}`}
-              className="group overflow-hidden rounded-xl border border-outline-variant/10 bg-surface-container-low shadow-primaryGlow transition hover:border-primary/30 hover:bg-surface-container"
+              className="group overflow-hidden rounded-xl border border-border/50 bg-card shadow-primaryGlow transition hover:border-primary/30 hover:bg-muted/50"
             >
-              <div className="aspect-video bg-surface-container-lowest">
+              <div className="aspect-video bg-muted/30">
                 <video
                   className="h-full w-full object-cover pointer-events-none transition group-hover:brightness-110"
-                  src={`/api/output/${h.jobUid}`}
+                  src={apiUrl(`/api/output/${h.jobUid}`)}
                   muted
                   playsInline
                   preload="metadata"
                 />
               </div>
               <div className="space-y-1 p-4">
-                <p className="truncate font-headline font-bold text-on-surface">
+                <p className="truncate font-headline font-bold text-foreground">
                   {h.topic?.trim() || "Untitled"}
                 </p>
-                <p className="text-xs text-on-surface-variant">
+                <p className="text-xs text-muted-foreground">
                   {new Date(h.createdAt).toLocaleString()}
                 </p>
                 {h.elapsedSeconds != null && Number.isFinite(h.elapsedSeconds) ? (
-                  <p className="text-xs text-on-surface-variant">
+                  <p className="text-xs text-muted-foreground">
                     Render:{" "}
                     <span className="font-semibold text-secondary">
                       {formatElapsedSeconds(h.elapsedSeconds)}
@@ -172,7 +175,7 @@ export const RendersGallery = () => {
                 ) : null}
                 {h.renderMeta?.gpt_model || h.renderMeta?.tts_model ? (
                   <p
-                    className="truncate font-mono text-[10px] text-outline"
+                    className="truncate font-mono text-[10px] text-muted-foreground/80"
                     title={[h.renderMeta?.gpt_model, h.renderMeta?.tts_model].filter(Boolean).join(" · ")}
                   >
                     {[h.renderMeta?.gpt_model, h.renderMeta?.tts_model].filter(Boolean).join(" · ")}

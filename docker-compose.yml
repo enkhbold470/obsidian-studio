@@ -1,9 +1,10 @@
-# Full stack: Postgres (Alembic) + MinIO (S3) + Flask (Vite build).
+# Full stack: Postgres (Alembic) + MinIO (S3) + Flask API only.
+# Frontend is developed/deployed separately; point it at this API via VITE_API_BASE_URL and CORS_ORIGINS.
 # Required env: OPENAI_API_KEY (and optionally OPENAI_BASE_URL, MAX_UPLOAD_MB).
 #
 #   export OPENAI_API_KEY=sk-... && docker compose up --build
 #
-# App: http://localhost:5001  |  MinIO API :9000, console :9001 (minioadmin / minioadmin), published on 0.0.0.0
+# API: http://localhost:5001  |  MinIO API :9000, console :9001 (minioadmin / minioadmin), published on 0.0.0.0
 # Postgres: localhost:5432  brainrot / brainrot
 
 services:
@@ -70,6 +71,8 @@ services:
       AWS_SECRET_ACCESS_KEY: minioadmin
       AWS_REGION: us-east-1
       S3_BUCKET: brainrot
+      # Comma-separated browser origins allowed to call /api/* with credentials (your SPA URL(s), e.g. http://app:4173 or public URL).
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://127.0.0.1:5173,http://localhost:5173}
     depends_on:
       postgres:
         condition: service_healthy

@@ -1,6 +1,9 @@
 import { useCallback } from "react";
 import type { DialogueLine } from "../api";
-import { inputClass, selectClass } from "../lib/obsidianStyles";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { selectClass } from "../lib/obsidianStyles";
+import { cn } from "@/lib/utils";
 
 type DialogueEditorProps = {
   lines: DialogueLine[];
@@ -44,8 +47,8 @@ export const DialogueEditor = ({ lines, onChange, layout = "default" }: Dialogue
 
   const scrollBoxClass =
     layout === "fill"
-      ? "dlg-scroll custom-scrollbar min-h-dialogue-panel-min flex-1 space-y-2 overflow-auto rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-3 lg:min-h-0"
-      : "dlg-scroll custom-scrollbar max-h-dialogue-panel min-h-dialogue-panel-min space-y-2 rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-3";
+      ? "dlg-scroll custom-scrollbar min-h-dialogue-panel-min flex-1 space-y-2 overflow-auto rounded-xl border border-border bg-card p-3 lg:min-h-0"
+      : "dlg-scroll custom-scrollbar max-h-dialogue-panel min-h-dialogue-panel-min space-y-2 rounded-xl border border-border bg-card p-3";
 
   return (
     <div
@@ -55,7 +58,7 @@ export const DialogueEditor = ({ lines, onChange, layout = "default" }: Dialogue
           : "space-y-3"
       }
     >
-      <p className="shrink-0 text-sm text-on-surface-variant">
+      <p className="shrink-0 text-sm text-muted-foreground">
         Scroll inside the box — horizontal and vertical scrollbars stay visible when content overflows.
       </p>
       <div className={scrollBoxClass}>
@@ -76,32 +79,30 @@ export const DialogueEditor = ({ lines, onChange, layout = "default" }: Dialogue
               <option value="Peter">Peter</option>
               <option value="Stewie">Stewie</option>
             </select>
-            <input
+            <Input
               type="text"
               value={line.text}
               onChange={(e) => handleText(index, e.target.value)}
-              className={`dlg-text flex-1 min-w-0 ${inputClass}`}
+              className={cn("dlg-text min-w-0 flex-1")}
               placeholder="Line…"
               aria-label={`Dialogue text line ${index + 1}`}
             />
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="icon"
               onClick={() => handleRemove(index)}
-              className="shrink-0 rounded-lg border border-outline-variant/20 bg-surface-container-highest px-3 py-2 text-sm font-bold text-on-surface-variant transition hover:border-error/40 hover:bg-error/10 hover:text-error"
+              className="shrink-0 border-destructive/30 text-muted-foreground hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
               aria-label={`Remove line ${index + 1}`}
             >
               ×
-            </button>
+            </Button>
           </div>
         ))}
       </div>
-      <button
-        type="button"
-        onClick={handleAddLine}
-        className="shrink-0 rounded-xl border border-outline-variant/20 bg-surface-container-highest px-4 py-2 text-sm font-bold text-on-surface transition hover:bg-surface-bright"
-      >
+      <Button type="button" variant="secondary" onClick={handleAddLine} className="shrink-0">
         + Add line
-      </button>
+      </Button>
     </div>
   );
 };

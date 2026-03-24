@@ -5,7 +5,7 @@
 | Path | Role |
 |------|------|
 | `backend/brainrot.py` | OpenAI dialogue/TTS/Whisper, FFmpeg pipeline, optional bundled FFmpeg download (macOS). |
-| `backend/main.py` | Flask app: `/api/*` JSON + multipart, SQLite auth, SPA fallback from `frontend/dist`. |
+| `backend/main.py` | Flask app: `/api/*` JSON + multipart, Postgres auth; optional SPA from `frontend/dist` if present. |
 | `backend/db.py` | SQLite users (`email`, `password_hash`) via `werkzeug.security`. |
 | `backend/paths.py` | `PROJECT_ROOT`, `storage/public`, `storage/uploads`, DB path under `backend/instance/`. |
 | `frontend/` | Vite + React + Tailwind. Dev server proxies `/api` → Flask (`5001`). |
@@ -29,7 +29,7 @@
 
 ## Production static files
 
-Flask serves the built SPA from `frontend/dist` for all non-`api` routes. Build the frontend before running the server (see `Dockerfile` or `docs/DEVELOPMENT.md`).
+If `frontend/dist` exists, Flask serves the SPA for non-`api` routes. Production can deploy the API (`Dockerfile`) and static frontend separately; set `VITE_API_BASE_URL` and `CORS_ORIGINS` (see `docs/DEPLOY_DOKPLOY.md`).
 
 ## Dependencies
 

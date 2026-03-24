@@ -32,7 +32,7 @@ Schema changes: edit SQLAlchemy models in `backend/db/models.py`, then `alembic 
 
 API: `http://127.0.0.1:5001/api/options`
 
-Without a built frontend, opening `http://127.0.0.1:5001/` returns JSON explaining to run the frontend build.
+Without a built `frontend/dist`, opening `http://127.0.0.1:5001/` returns JSON (API-only mode). Use Vite dev or deploy the SPA separately with `VITE_API_BASE_URL` + `CORS_ORIGINS` when needed.
 
 ## Frontend (Vite)
 

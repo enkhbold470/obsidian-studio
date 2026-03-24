@@ -1,7 +1,19 @@
 const jsonHeaders = { "Content-Type": "application/json" };
 
+/** No trailing slash. Empty = same-origin (Vite dev proxy) or reverse-proxy to API. */
+export const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+
+/** Prefix a path like `/api/...` with the configured API origin for split deployments. */
+export const apiUrl = (path: string): string => {
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return `${API_BASE}${p}`;
+};
+
 export const apiFetch = (path: string, init?: RequestInit) =>
-  fetch(path, { ...init, credentials: "include" });
+  fetch(apiUrl(path), { ...init, credentials: "include" });
 
 export type AuthUser = {
   id: number;
@@ -85,7 +97,7 @@ export const uploadBackgroundWithProgress = async (
   fd.set("file", file);
   return new Promise<BackgroundItem>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/backgrounds");
+    xhr.open("POST", apiUrl("/api/backgrounds"));
     xhr.withCredentials = true;
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) {
@@ -258,7 +270,7 @@ export const postGenerateWithProgress = async (
   return new Promise<{ error?: string; file?: string; ok?: boolean; elapsedSeconds?: number }>(
     (resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/generate");
+    xhr.open("POST", apiUrl("/api/generate"));
     xhr.withCredentials = true;
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onUploadProgress) {

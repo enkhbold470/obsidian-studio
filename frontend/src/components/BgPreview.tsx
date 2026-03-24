@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { BackgroundItem } from "../api";
+import { apiUrl, type BackgroundItem } from "../api";
 
 type Props = { item: BackgroundItem };
 
@@ -11,7 +11,7 @@ export const BgPreview = ({ item }: Props) => {
     return (
       <video
         className="w-full h-full object-cover pointer-events-none"
-        src={item.streamUrl}
+        src={apiUrl(item.streamUrl)}
         muted
         playsInline
         preload="none"
@@ -21,7 +21,7 @@ export const BgPreview = ({ item }: Props) => {
 
   return (
     <img
-      src={item.thumbUrl}
+      src={apiUrl(item.thumbUrl!)}
       alt=""
       loading="lazy"
       decoding="async"

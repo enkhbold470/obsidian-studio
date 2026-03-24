@@ -1,31 +1,63 @@
+import tailwindcssAnimate from "tailwindcss-animate";
+
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: "class",
+  darkMode: ["class"],
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
       colors: {
-        background: "#0e0e0e",
-        surface: "#0e0e0e",
-        "surface-dim": "#0e0e0e",
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        surface: "hsl(var(--background))",
+        "surface-dim": "hsl(var(--background))",
         "surface-bright": "#2c2c2c",
         "surface-variant": "#262626",
         "surface-container-lowest": "#000000",
-        "surface-container-low": "#131313",
-        "surface-container": "#1a1a1a",
+        "surface-container-low": "hsl(var(--muted))",
+        "surface-container": "hsl(var(--card))",
         "surface-container-high": "#20201f",
         "surface-container-highest": "#262626",
-        "surface-tint": "#b6a0ff",
-        primary: "#b6a0ff",
+        "surface-tint": "hsl(var(--primary))",
         "primary-dim": "#7e51ff",
         "primary-container": "#a98fff",
         "primary-fixed": "#a98fff",
         "primary-fixed-dim": "#9c7eff",
-        "on-primary": "#340090",
+        "on-primary": "hsl(var(--primary-foreground))",
         "on-primary-container": "#280072",
         "on-primary-fixed": "#000000",
         "on-primary-fixed-variant": "#32008a",
-        secondary: "#00e3fd",
         "secondary-dim": "#00d4ec",
         "secondary-container": "#006875",
         "secondary-fixed": "#26e6ff",
@@ -43,16 +75,16 @@ export default {
         "on-tertiary-container": "#59002e",
         "on-tertiary-fixed": "#37001a",
         "on-tertiary-fixed-variant": "#70103e",
-        error: "#ff6e84",
+        error: "hsl(var(--destructive))",
         "error-dim": "#d73357",
         "error-container": "#a70138",
         "on-error": "#490013",
         "on-error-container": "#ffb2b9",
         outline: "#767575",
-        "outline-variant": "#484847",
-        "on-background": "#ffffff",
-        "on-surface": "#ffffff",
-        "on-surface-variant": "#adaaaa",
+        "outline-variant": "hsl(var(--border))",
+        "on-background": "hsl(var(--foreground))",
+        "on-surface": "hsl(var(--foreground))",
+        "on-surface-variant": "hsl(var(--muted-foreground))",
         "inverse-surface": "#fcf9f8",
         "inverse-on-surface": "#565555",
         "inverse-primary": "#6834eb",
@@ -63,8 +95,9 @@ export default {
         label: ["Inter", "system-ui", "sans-serif"],
       },
       borderRadius: {
-        DEFAULT: "0.25rem",
-        lg: "0.5rem",
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
         xl: "0.75rem",
       },
       minHeight: {
@@ -83,7 +116,21 @@ export default {
       boxShadow: {
         primaryGlow: "0 0 24px rgba(182, 160, 255, 0.12)",
       },
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+      },
     },
   },
-  plugins: [],
+  plugins: [tailwindcssAnimate],
 };

@@ -1,11 +1,5 @@
-# Vite build → Flask + static SPA. Runtime needs: backend, Alembic, assets, ffmpeg.
-FROM oven/bun:1 AS frontend
-WORKDIR /build/frontend
-COPY frontend/package.json ./
-RUN bun install
-COPY frontend/ ./
-RUN bun run build
-
+# Backend API only (Flask + Alembic + ffmpeg). Build and host the SPA separately (e.g. Bun/Vite on Dokploy).
+# Runtime needs: backend, Alembic, assets, ffmpeg — no frontend/dist in image.
 FROM python:3.12-slim-bookworm
 WORKDIR /app
 
@@ -22,8 +16,6 @@ COPY alembic ./alembic
 COPY assets ./assets
 
 RUN mkdir -p storage/public storage/uploads temp_build
-
-COPY --from=frontend /build/frontend/dist ./frontend/dist
 
 ENV PORT=5001
 ENV HOST=0.0.0.0

@@ -75,10 +75,13 @@ app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
 app.config.setdefault("SESSION_COOKIE_HTTPONLY", True)
 
 _cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "http://127.0.0.1:5173,http://localhost:5173").split(",") if o.strip()]
+# Applies to all routes; API is the cross-origin surface. Use explicit origins (required with credentials).
 CORS(
     app,
-    resources={r"/api/*": {"origins": _cors_origins}},
+    origins=_cors_origins,
     supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
 )
 
 
@@ -619,8 +622,8 @@ def spa(path):
     if not DIST_DIR.is_dir() or not (DIST_DIR / "index.html").is_file():
         return (
             jsonify({
-                "error": "Frontend not built. Run: cd frontend && bun install && bun run build",
-                "hint": "API lives at /api/*",
+                "error": "No SPA in this image. Deploy the frontend separately; API is at /api/*",
+                "hint": "Set CORS_ORIGINS to your SPA origin; use VITE_API_BASE_URL on the client.",
             }),
             503,
         )
@@ -641,7 +644,8 @@ def _run_server() -> None:
     ep = (os.environ.get("S3_ENDPOINT_URL") or "").strip()
     print(
         f"[startup] host={host!r} port={port} MAX_UPLOAD_MB={_max_upload_mb} "
-        f"S3_ENDPOINT_URL={'set' if ep else 'unset'} S3_BUCKET={os.environ.get('S3_BUCKET', 'brainrot')!r}",
+        f"S3_ENDPOINT_URL={'set' if ep else 'unset'} S3_BUCKET={os.environ.get('S3_BUCKET', 'brainrot')!r} "
+        f"CORS_ORIGINS={len(_cors_origins)} origin(s)",
         flush=True,
     )
     _log.info(

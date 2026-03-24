@@ -1,18 +1,12 @@
 # Deploy on Dokploy
 
-Goal: one **Dockerfile** service that builds the React app and runs Flask on a single port.
+Recommended layout: **two applications** — API (this repo’s `Dockerfile`) and **frontend** (static build from `frontend/`, no Docker required for the UI).
 
-## What you need in the repo
+## Backend (Dockerfile at repo root)
 
-- `peter.png` and `stewie.png` under **`assets/`** (or at the repository root). The Docker build copies `assets/` into the image.
-- Optional: sample videos under `storage/public/` — large files are often **mounted** at runtime instead of baked into the image (see volumes).
-
-## Dokploy application
-
-1. Create a **Dockerfile** application pointing at this repository.
-2. **Build context**: repository root (default).
-3. **Port**: container `5001` → your public HTTPS port (Dokploy reverse proxy).
-4. **Environment** (minimum):
+1. Create a **Dockerfile** application pointing at this repository; **build context** = repository root.
+2. **Port**: container `5001` → map to your public HTTP port (or internal only if the SPA talks to it via `VITE_API_BASE_URL`).
+3. **Environment** (minimum):
 
    | Name | Value |
    |------|--------|
@@ -20,10 +14,23 @@ Goal: one **Dockerfile** service that builds the React app and runs Flask on a s
    | `DATABASE_URL` | PostgreSQL URL (Alembic migrations in `alembic/versions/`) |
    | `SECRET_KEY` | Long random string (session integrity) |
    | `PORT` | `5001` (or match EXPOSE) |
+   | `CORS_ORIGINS` | **Required** if the SPA is on another origin: comma-separated browser origins, e.g. `http://your-frontend-host:4173` or your public app URL. Must match what the browser sends as `Origin` (scheme + host + port). |
 
-5. **CORS**: For a single-origin deploy (same host serves UI + API), defaults are fine. If the browser origin differs, set `CORS_ORIGINS` to your exact `https://your-domain` (comma-separated, no trailing slash issues — match browser origin).
+4. **MinIO / S3**: Set `S3_ENDPOINT_URL`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET` as in `docker-compose.yml` when using object storage.
 
-6. **HTTPS**: Run behind Dokploy’s TLS so session cookies stay `Secure` in production if you configure Flask accordingly later.
+5. Opening `/` without a baked-in SPA returns JSON `503` with a hint — that is expected when only the API is deployed.
+
+## Frontend (separate Dokploy app or static host)
+
+1. Build locally or in CI: `cd frontend && bun install && bun run build`.
+2. Deploy the `frontend/dist` folder as a static site (or Node static server).
+3. Set **`VITE_API_BASE_URL`** at **build time** to the public base URL of the API (no trailing slash), e.g. `http://api.internal:5001` or your reverse-proxied URL. See `frontend/.env.example`.
+4. Ensure that URL is listed in **`CORS_ORIGINS`** on the backend.
+
+## CORS and cookies
+
+- The browser sends `credentials: "include"` for `/api/*`. Allowed origins must be listed explicitly in `CORS_ORIGINS` (wildcards are not used with credentials).
+- Cross-site cookies need `SameSite=None; Secure` in browsers; on plain HTTP / split hostnames, session login may require same-site deployment or TLS — plan accordingly.
 
 ## Persistent data (recommended mounts)
 
@@ -34,20 +41,19 @@ Goal: one **Dockerfile** service that builds the React app and runs Flask on a s
 | `/app/storage/uploads` | Upload cache |
 | S3 / MinIO | Rendered videos when `S3_ENDPOINT_URL` is set |
 
-Without a persistent database and object storage, users and past renders are lost when containers are recreated.
-
 ## Health check
 
 Dokploy can HTTP-check `GET /api/options` (returns JSON) on the internal port.
 
 ## Smoke test after deploy
 
-1. Open your site → register → login (unless you intentionally use `SKIP_AUTH` — **not** for public prod).
-2. Put a test `.mp4` in `storage/public` (via mount or image rebuild).
-3. Draft script → generate → confirm video plays.
+1. Open the **frontend** URL → register → login (unless `SKIP_AUTH` — not for public prod).
+2. Put a test `.mp4` in `storage/public` (via mount or image rebuild) if you rely on bundled backgrounds.
+3. Draft script → generate → confirm video plays (video URLs go through `/api/output/...` on the API origin).
 
 ## Troubleshooting
 
-- **503 “Frontend not built”**: Image was built without the frontend stage succeeding; check Docker build logs.
+- **503 JSON on API root**: Normal when no SPA is bundled; use the separate frontend.
+- **CORS errors**: Add the exact SPA `Origin` to `CORS_ORIGINS`; rebuild the SPA with correct `VITE_API_BASE_URL`.
 - **`OPENAI_API_KEY not set`**: Missing env in Dokploy service.
-- **FFmpeg errors**: Base image installs distro `ffmpeg`. Brainrot may still download static macOS-focused binaries on developers’ machines only; Linux containers use apt’s FFmpeg.
+- **FFmpeg errors**: Base image installs distro `ffmpeg`.
