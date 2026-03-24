@@ -7,7 +7,7 @@ export const AppFooter = () => (
       <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
         <span className="font-headline text-sm font-bold text-foreground">Obsidian Studio</span>
         <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
-          ReelMaker
+          Obsidian Studio
         </span>
       </div>
       <div className="flex flex-wrap justify-center gap-6">
@@ -18,7 +18,7 @@ export const AppFooter = () => (
           Home
         </Link>
       </div>
-      <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} ReelMaker</p>
+      <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} Obsidian Studio</p>
     </div>
   </footer>
 );

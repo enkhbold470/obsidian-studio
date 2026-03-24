@@ -52,7 +52,7 @@ export const AppHeader = () => {
             to="/"
             className="shrink-0 font-headline text-xl font-bold tracking-tight text-primary sm:text-2xl"
           >
-            ReelMaker
+            Obsidian Studio
           </Link>
           <nav className="hidden items-center gap-5 md:flex" aria-label="Primary">
             <NavLink to="/" end className={navLinkClass} title="Editor">
