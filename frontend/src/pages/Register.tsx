@@ -28,8 +28,8 @@ export const Register = () => {
       }
       toast.success("Account created");
       nav("/", { replace: true });
-    } catch {
-      toast.error("Network error");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Network error");
     } finally {
       setLoading(false);
     }

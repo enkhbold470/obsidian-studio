@@ -3,6 +3,7 @@ python-dotenv
 fish-audio-sdk
 flask
 flask-cors
+flask-limiter>=3.8
 boto3
 psycopg[binary]>=3.2
 sqlalchemy>=2.0

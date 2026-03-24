@@ -51,6 +51,10 @@ Use **`GET /health`**: returns `{"status":"healthy","checks":{...}}` with HTTP 2
 2. Put a test `.mp4` in `storage/public` (via mount or image rebuild) if you rely on bundled backgrounds.
 3. Draft script → generate → confirm video plays (video URLs go through `/api/output/...` on the API origin).
 
+## Rate limiting & scans
+
+The API uses **Flask-Limiter** (per-IP, in-memory by default): `/api/*` ~120/min; login/register ~12/min. Obvious scanner paths (`.env`, `wp-admin`, etc.) return **404** without running heavy handlers. Disable with `RATELIMIT_ENABLED=0` if needed. For serious abuse, add **Traefik / firewall** rules or a WAF — app-level limits are a light baseline.
+
 ## Troubleshooting
 
 - **503 JSON on `/login` etc.**: Normal when no SPA is bundled; open the separate frontend URL instead.
