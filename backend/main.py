@@ -621,9 +621,13 @@ def _serve_spa(path: str):
 def spa(path):
     if not DIST_DIR.is_dir() or not (DIST_DIR / "index.html").is_file():
         return (
+            # jsonify({
+            #     "error": "No SPA in this image. Deploy the frontend separately; API is at /api/*",
+            #     "hint": "Set CORS_ORIGINS to your SPA origin; use VITE_API_BASE_URL on the client.",
+            # }),        
             jsonify({
-                "error": "No SPA in this image. Deploy the frontend separately; API is at /api/*",
-                "hint": "Set CORS_ORIGINS to your SPA origin; use VITE_API_BASE_URL on the client.",
+                "error": "welcome to the obsidian studio api",
+                "hint": "more details: https://github.com/enkhbold470/obsidian-studio",
             }),
             503,
         )
