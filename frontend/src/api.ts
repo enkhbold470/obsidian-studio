@@ -15,6 +15,28 @@ export const apiUrl = (path: string): string => {
 export const apiFetch = (path: string, init?: RequestInit) =>
   fetch(apiUrl(path), { ...init, credentials: "include" });
 
+const LOOKS_LIKE_HTML = /^[\s\n]*</;
+
+/**
+ * Parse JSON from a fetch Response. If the response is HTML (common when /api hits a static host),
+ * throw a clear error about VITE_API_BASE_URL + CORS.
+ */
+export const readJsonOrExplain = async <T>(r: Response): Promise<T> => {
+  const text = await r.text();
+  if (LOOKS_LIKE_HTML.test(text)) {
+    throw new Error(
+      "Received HTML instead of JSON. Set VITE_API_BASE_URL to your API base URL when building the frontend (no trailing slash), and add this site’s origin to backend CORS_ORIGINS."
+    );
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(
+      `Invalid JSON from server (${r.status}). ${text.slice(0, 120).replace(/\s+/g, " ")}`
+    );
+  }
+};
+
 export type AuthUser = {
   id: number;
   email: string;
@@ -22,27 +44,27 @@ export type AuthUser = {
 };
 
 export const getMe = () =>
-  apiFetch("/api/auth/me").then((r) => r.json()) as Promise<{
+  apiFetch("/api/auth/me").then((r) => readJsonOrExplain<{
     user: AuthUser | null;
     skipAuth?: boolean;
-  }>;
+  }>(r));
 
 export const login = (email: string, password: string) =>
   apiFetch("/api/auth/login", {
     method: "POST",
     headers: jsonHeaders,
     body: JSON.stringify({ email, password }),
-  }).then((r) => r.json());
+  }).then((r) => readJsonOrExplain(r));
 
 export const register = (email: string, password: string) =>
   apiFetch("/api/auth/register", {
     method: "POST",
     headers: jsonHeaders,
     body: JSON.stringify({ email, password }),
-  }).then((r) => r.json());
+  }).then((r) => readJsonOrExplain(r));
 
 export const logout = () =>
-  apiFetch("/api/auth/logout", { method: "POST" }).then((r) => r.json());
+  apiFetch("/api/auth/logout", { method: "POST" }).then((r) => readJsonOrExplain(r));
 
 export const patchMe = (body: { galleryPublic?: boolean }) =>
   apiFetch("/api/me", {
@@ -50,14 +72,14 @@ export const patchMe = (body: { galleryPublic?: boolean }) =>
     headers: jsonHeaders,
     body: JSON.stringify(body),
   }).then(async (r) => {
-    const data = (await r.json()) as { user?: AuthUser; error?: string };
+    const data = (await readJsonOrExplain<{ user?: AuthUser; error?: string }>(r));
     if (!r.ok) {
       throw new Error(data.error ?? `Request failed (${r.status})`);
     }
     return data;
   });
 
-export const getOptions = () => apiFetch("/api/options").then((r) => r.json());
+export const getOptions = () => apiFetch("/api/options").then((r) => readJsonOrExplain(r));
 
 export type BackgroundItem = {
   id: string;
@@ -70,7 +92,7 @@ export type BackgroundItem = {
 
 export const getBackgrounds = async () => {
   const r = await apiFetch("/api/backgrounds");
-  const data = (await r.json()) as { items?: BackgroundItem[]; error?: string };
+  const data = await readJsonOrExplain<{ items?: BackgroundItem[]; error?: string }>(r);
   if (!r.ok) {
     throw new Error(data.error ?? `Backgrounds failed (${r.status})`);
   }
@@ -81,7 +103,7 @@ export const uploadBackground = async (file: File) => {
   const fd = new FormData();
   fd.set("file", file);
   const r = await apiFetch("/api/backgrounds", { method: "POST", body: fd });
-  const data = (await r.json()) as { item?: BackgroundItem; error?: string };
+  const data = await readJsonOrExplain<{ item?: BackgroundItem; error?: string }>(r);
   if (!r.ok) {
     throw new Error(data.error ?? `Upload failed (${r.status})`);
   }
@@ -106,8 +128,17 @@ export const uploadBackgroundWithProgress = async (
     };
     xhr.onload = () => {
       let data: { item?: BackgroundItem; error?: string };
+      const raw = xhr.responseText;
+      if (LOOKS_LIKE_HTML.test(raw)) {
+        reject(
+          new Error(
+            "Received HTML instead of JSON — check VITE_API_BASE_URL and CORS (see login error)."
+          )
+        );
+        return;
+      }
       try {
-        data = JSON.parse(xhr.responseText) as typeof data;
+        data = JSON.parse(raw) as typeof data;
       } catch {
         reject(new Error(`Upload failed (${xhr.status}) — not JSON.`));
         return;
@@ -129,7 +160,7 @@ export const uploadBackgroundWithProgress = async (
 
 export const deleteBackground = async (id: string) => {
   const r = await apiFetch(`/api/backgrounds/${id}`, { method: "DELETE" });
-  const data = (await r.json()) as { ok?: boolean; error?: string };
+  const data = await readJsonOrExplain<{ ok?: boolean; error?: string }>(r);
   if (!r.ok) {
     throw new Error(data.error ?? `Delete failed (${r.status})`);
   }
@@ -170,7 +201,7 @@ export type HistoryItem = {
 
 export const getHistory = async () => {
   const r = await apiFetch("/api/history");
-  const data = (await r.json()) as { items?: HistoryItem[]; error?: string };
+  const data = await readJsonOrExplain<{ items?: HistoryItem[]; error?: string }>(r);
   if (!r.ok) {
     throw new Error(data.error ?? `History failed (${r.status})`);
   }
@@ -179,11 +210,11 @@ export const getHistory = async () => {
 
 export const getUserRenders = async (userId: number) => {
   const r = await apiFetch(`/api/users/${userId}/renders`);
-  const data = (await r.json()) as {
+  const data = await readJsonOrExplain<{
     items?: HistoryItem[];
     galleryPublic?: boolean;
     error?: string;
-  };
+  }>(r);
   if (r.status === 403) {
     throw new Error("Forbidden");
   }
@@ -205,7 +236,7 @@ export const postScript = async (body: {
     headers: jsonHeaders,
     body: JSON.stringify(body),
   });
-  const data = (await r.json()) as { dialogue?: unknown; error?: string };
+  const data = await readJsonOrExplain<{ dialogue?: unknown; error?: string }>(r);
   if (!r.ok) {
     throw new Error(data.error ?? `Script failed (${r.status})`);
   }
@@ -213,6 +244,11 @@ export const postScript = async (body: {
 };
 
 const parseGenerateError = (status: number, raw: string): Error => {
+  if (LOOKS_LIKE_HTML.test(raw)) {
+    return new Error(
+      "Received HTML instead of JSON — set VITE_API_BASE_URL to your API URL when building the frontend."
+    );
+  }
   try {
     const data = JSON.parse(raw) as { error?: string };
     if (data.error) {
@@ -288,6 +324,10 @@ export const postGenerateWithProgress = async (
       }
       let data: { error?: string; file?: string; ok?: boolean; elapsedSeconds?: number };
       try {
+        if (LOOKS_LIKE_HTML.test(raw)) {
+          reject(parseGenerateError(xhr.status, raw));
+          return;
+        }
         data = JSON.parse(raw) as typeof data;
       } catch {
         reject(parseGenerateError(xhr.status, raw));

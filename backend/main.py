@@ -19,6 +19,8 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 from flask import Flask, jsonify, request, send_file, send_from_directory, session
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.errors import RateLimitExceeded
 from werkzeug.exceptions import RequestEntityTooLarge
 from backend.brainrot import (
     ASS_FONTS,
@@ -87,6 +89,66 @@ CORS(
 )
 
 
+def _client_ip() -> str:
+    """Client IP behind Traefik / Dokploy (first X-Forwarded-For hop)."""
+    xff = (request.headers.get("X-Forwarded-For") or "").strip()
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.remote_addr or "0.0.0.0"
+
+
+_rl_enabled = os.environ.get("RATELIMIT_ENABLED", "1").lower() not in ("0", "false", "no")
+app.config["RATELIMIT_ENABLED"] = _rl_enabled
+_limiter_storage = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
+limiter = Limiter(
+    key_func=_client_ip,
+    app=app,
+    default_limits=["120 per minute", "8000 per day"],
+    storage_uri=_limiter_storage,
+    headers_enabled=True,
+    enabled=_rl_enabled,
+)
+
+# Cheap 404 for common scanner paths (never used by this API).
+_SCAN_PATH_MARKERS = (
+    ".env",
+    ".git",
+    "wp-admin",
+    "wp-login",
+    "wp-content",
+    "wp-includes",
+    "xmlrpc.php",
+    "phpmyadmin",
+    "pgadmin",
+    "vendor/php",
+    "cgi-bin",
+    "shell.php",
+    "administrator",
+    "boaform",
+    "solr/",
+    "phpinfo",
+    "setup.php",
+    "config.php",
+    "aws/credentials",
+)
+
+
+@app.before_request
+def block_obvious_scans():
+    p = request.path.lower()
+    if p.startswith("/api/"):
+        return None
+    for m in _SCAN_PATH_MARKERS:
+        if m in p:
+            return ("", 404)
+    return None
+
+
+@app.errorhandler(RateLimitExceeded)
+def _rate_limit_exceeded(_e: RateLimitExceeded):
+    return jsonify({"error": "Too many requests. Please try again in a minute."}), 429
+
+
 @app.errorhandler(RequestEntityTooLarge)
 def handle_request_entity_too_large(_e: RequestEntityTooLarge):
     return jsonify(
@@ -100,6 +162,7 @@ def handle_request_entity_too_large(_e: RequestEntityTooLarge):
 
 
 @app.route("/")
+@limiter.exempt
 def root_welcome():
     return jsonify(
         {
@@ -112,6 +175,7 @@ def root_welcome():
 
 
 @app.route("/health")
+@limiter.exempt
 def health():
     checks: dict[str, object] = {"database": False}
     try:
@@ -166,6 +230,7 @@ def _require_s3():
 
 
 @app.route("/api/auth/register", methods=["POST"])
+@limiter.limit("12 per minute")
 def auth_register():
     data = request.get_json(force=True, silent=True) or {}
     email = (data.get("email") or "").strip()
@@ -179,6 +244,7 @@ def auth_register():
 
 
 @app.route("/api/auth/login", methods=["POST"])
+@limiter.limit("12 per minute")
 def auth_login():
     data = request.get_json(force=True, silent=True) or {}
     email = (data.get("email") or "").strip()
