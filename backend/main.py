@@ -488,6 +488,7 @@ def api_options():
         "tts_voices": opts.get("tts_voices") or [],
         "tts_models": opts.get("tts_models") or [],
         "gpt_models": opts.get("gpt_models") or [],
+        "default_gpt_model": get_default_gpt_model(),
         "fonts": ASS_FONTS,
     })
 

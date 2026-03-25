@@ -39,6 +39,20 @@ DEFAULT_KOKORO_BASE_URL = os.environ.get("KOKORO_BASE_URL", "https://api.kokoro.
 # Always merged with GET /v1/models on KOKORO_BASE_URL (any OpenAI-compatible host).
 TTS_MODELS = ["kokoro"]
 
+# Chat models for JSON dialogue (Dedalus: provider-prefixed ids). No GET /v1/models for LLM — too heavy.
+# Override default with env DEFAULT_GPT_MODEL (any string your gateway accepts).
+DEFAULT_GPT_MODEL_ID = "xai/grok-4-fast-reasoning"
+CURATED_GPT_MODELS: list[str] = [
+    DEFAULT_GPT_MODEL_ID,
+    "xai/grok-4-1-fast-reasoning",
+    "xai/grok-4-fast-non-reasoning",
+    "xai/grok-4-1-fast-non-reasoning",
+    "openai/gpt-4o",
+    "openai/gpt-5",
+    "openai/gpt-5-mini",
+    "openai/gpt-5-nano",
+]
+
 # Kokoro voice ids (subset); blend strings like bm_george*0.7+af_bella*0.3 are supported if the server
 # implements them. Merged with OpenAI presets + /voices + /models discovery.
 TTS_VOICES = [
@@ -208,18 +222,15 @@ def _try_fetch_kokoro_voice_ids() -> list[str]:
 
 
 def get_dynamic_options() -> dict[str, Any]:
-    """LLM ids from OPENAI_BASE_URL; TTS ids/voices = Kokoro seeds ∪ whatever /models and /voices return."""
-    llm_base = os.environ.get("OPENAI_BASE_URL", DEFAULT_OPENAI_BASE_URL).rstrip("/")
+    """Curated LLM ids (no GET /v1/models on chat host). TTS ids/voices = Kokoro seeds ∪ /models and /voices."""
     tts_base = os.environ.get("KOKORO_BASE_URL", DEFAULT_KOKORO_BASE_URL).rstrip("/")
-    llm_key = os.environ.get("OPENAI_API_KEY") or ""
     tts_key = os.environ.get("KOKORO_API_KEY", "not-needed")
 
-    llm_ids = _http_list_all_model_ids(llm_base, llm_key)
+    gpt_models = list(CURATED_GPT_MODELS)
+    _def_gpt = get_default_gpt_model()
+    if _def_gpt not in gpt_models:
+        gpt_models = [_def_gpt] + gpt_models
     tts_ids = _http_list_all_model_ids(tts_base, tts_key)
-
-    gpt_models = [m for m in llm_ids if not _is_non_llm_chat_model(m)]
-    if not gpt_models and llm_ids:
-        gpt_models = list(llm_ids)
 
     tts_models_fetched = [m for m in tts_ids if _is_tts_model_id(m)]
     if not tts_models_fetched and tts_ids:
@@ -249,8 +260,10 @@ def get_dynamic_options_cached() -> dict[str, Any]:
 
 
 def get_default_gpt_model() -> str:
-    m = get_dynamic_options_cached().get("gpt_models") or []
-    return m[0] if m else "gpt-4o"
+    env = (os.environ.get("DEFAULT_GPT_MODEL") or "").strip()
+    if env:
+        return env
+    return DEFAULT_GPT_MODEL_ID
 
 
 def get_default_tts_model() -> str:
@@ -379,7 +392,7 @@ class Config:
     peter_voice: str = "am_michael"
     stewie_voice: str = "bm_george*0.7+af_bella*0.3"
     tts_model: str = "kokoro"
-    gpt_model: str = "gpt-4o"
+    gpt_model: str = DEFAULT_GPT_MODEL_ID
     output_format: str = "mp4"
 
 
