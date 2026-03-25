@@ -107,7 +107,16 @@ export const patchMe = (body: { galleryPublic?: boolean }) =>
     return data;
   });
 
-export const getOptions = () => apiFetch("/api/options").then((r) => readJsonOrExplain(r));
+export type OptionsPayload = {
+  tts_voices: string[];
+  tts_models: string[];
+  gpt_models: string[];
+  default_gpt_model?: string;
+  fonts: string[];
+};
+
+export const getOptions = () =>
+  apiFetch("/api/options").then((r) => readJsonOrExplain<OptionsPayload>(r));
 
 export type BackgroundItem = {
   id: string;

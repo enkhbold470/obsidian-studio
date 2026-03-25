@@ -3,7 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const SCRIPT_READY_KEY = "reelmaker-script-ready";
-import type { AuthUser, BackgroundItem, DialogueLine } from "../api";
+import type { AuthUser, BackgroundItem, DialogueLine, OptionsPayload } from "../api";
 import {
   apiUrl,
   deleteBackground,
@@ -28,12 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatElapsedSeconds } from "../formatElapsed";
 import { inputClass, panelClass, panelMutedClass, selectClass } from "../lib/obsidianStyles";
 
-type OptionsPayload = {
-  tts_voices: string[];
-  tts_models: string[];
-  gpt_models: string[];
-  fonts: string[];
-};
+const FALLBACK_DEFAULT_GPT = "xai/grok-4-fast-reasoning";
 
 const LUCKY_TOPICS = [
   "pineapple on pizza",
@@ -69,7 +64,7 @@ export const Maker = () => {
   const [outlineColor, setOutlineColor] = useState("#000000");
   const [peterVoice, setPeterVoice] = useState("am_michael");
   const [stewieVoice, setStewieVoice] = useState("bm_george*0.7+af_bella*0.3");
-  const [gptModel, setGptModel] = useState("gpt-4o");
+  const [gptModel, setGptModel] = useState(FALLBACK_DEFAULT_GPT);
   const [ttsModel, setTtsModel] = useState("kokoro");
 
   const [options, setOptions] = useState<OptionsPayload | null>(null);
@@ -141,9 +136,9 @@ export const Maker = () => {
   useEffect(() => {
     getOptions().then((o: OptionsPayload) => {
       setOptions(o);
-      if (o.gpt_models?.length && !o.gpt_models.includes(gptModel)) {
-        setGptModel(o.gpt_models[0]);
-      }
+      const curated = o.gpt_models ?? [];
+      const def = o.default_gpt_model ?? curated[0] ?? FALLBACK_DEFAULT_GPT;
+      setGptModel((prev) => (curated.includes(prev) ? prev : def));
       if (o.tts_models?.length && !o.tts_models.includes(ttsModel)) {
         setTtsModel(o.tts_models[0]);
       }
@@ -415,25 +410,7 @@ export const Maker = () => {
       <form className="divide-y divide-border" onSubmit={handleFormSubmit}>
         <section aria-label="Topic and draft" className="space-y-4 py-6">
           <div className="flex flex-col gap-6 lg:grid lg:grid-cols-12 lg:items-start lg:gap-6">
-            <div className="space-y-2 lg:col-span-4">
-              <Label className="font-label text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                AI model (draft script)
-              </Label>
-              <select
-                name="gpt_model"
-                value={gptModel}
-                onChange={(e) => setGptModel(e.target.value)}
-                className={selectClass}
-              >
-                {(options?.gpt_models ?? [gptModel]).map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-muted-foreground">Used for “Draft script with AI” only.</p>
-            </div>
-            <div className="space-y-2 lg:col-span-5">
+            <div className="space-y-2 lg:col-span-8">
               <Label htmlFor="topic-field" className="font-label text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Topic (for AI script draft)
               </Label>
@@ -447,10 +424,12 @@ export const Maker = () => {
                 className="min-h-20 resize-y"
               />
               <p className="text-xs text-muted-foreground">
-                <strong className="text-foreground">Draft</strong> uses line count; <strong className="text-foreground">Generate</strong> runs TTS + subs + mux.
+                <strong className="text-foreground">Draft</strong> uses line count below; <strong className="text-foreground">Generate</strong> runs TTS + subs + mux. Script drafts default to{" "}
+                <span className="text-foreground">xAI Grok (fast reasoning)</span> via your configured API. To pick another model, open{" "}
+                <strong className="text-foreground">Advanced options</strong>.
               </p>
             </div>
-            <div className="flex flex-col gap-3 border-border lg:col-span-3 lg:border-l lg:pl-6">
+            <div className="flex flex-col gap-3 border-border lg:col-span-4 lg:border-l lg:pl-6">
               <div className="flex flex-wrap items-center gap-2">
                 <Label htmlFor="dialogue_lines" className="font-label text-sm font-bold">
                   Lines (AI draft)
@@ -576,7 +555,7 @@ export const Maker = () => {
             </span>
           </summary>
           <p className="mt-4 text-xs text-muted-foreground">
-            Library upload, timing, output, look, and voices — defaults apply when collapsed.
+            Library upload, AI model for drafts, timing, output, look, and voices — defaults apply when collapsed.
           </p>
           <div className={`${panelMutedClass} mt-4 space-y-4`}>
             <div>
@@ -645,6 +624,22 @@ export const Maker = () => {
                   <option value="mp4">MP4</option>
                   <option value="mkv">MKV</option>
                 </select>
+              </div>
+              <div>
+                <label className="mb-1 block font-bold text-foreground">AI model (draft script)</label>
+                <select
+                  value={gptModel}
+                  onChange={(e) => setGptModel(e.target.value)}
+                  className={selectClass}
+                  aria-label="AI model for draft script"
+                >
+                  {(options?.gpt_models ?? [gptModel]).map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-muted-foreground">Used only for “Draft script with AI”.</p>
               </div>
               <div>
                 <label className="mb-1 block font-bold text-foreground">TTS model</label>
