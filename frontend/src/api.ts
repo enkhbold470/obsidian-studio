@@ -234,6 +234,8 @@ export type HistoryItem = {
   elapsedSeconds?: number | null;
   renderMeta?: RenderMeta | null;
   watchUrl: string;
+  /** GET `/api/output/<jobUid>/thumb` — JPEG next to the video in storage (`*.thumb.jpg`). */
+  thumbUrl?: string;
 };
 
 export const getHistory = async () => {

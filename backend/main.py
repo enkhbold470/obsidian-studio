@@ -473,6 +473,7 @@ def api_user_renders(user_id):
                     "elapsedSeconds": r.elapsed_seconds,
                     "renderMeta": r.render_meta,
                     "watchUrl": f"/u/{user_id}/renders/{r.job_uid}",
+                    "thumbUrl": f"/api/output/{r.job_uid}/thumb",
                 }
                 for r in rows
             ],
@@ -514,6 +515,7 @@ def api_history():
                 "elapsedSeconds": r.elapsed_seconds,
                 "renderMeta": r.render_meta,
                 "watchUrl": f"/u/{int(sid)}/renders/{r.job_uid}",
+                "thumbUrl": f"/api/output/{r.job_uid}/thumb",
             }
             for r in rows
         ],
@@ -622,6 +624,9 @@ def api_generate():
         _gen_print(f"run_pipeline done (elapsed {time.perf_counter() - t0:.2f}s), uploading output to S3 …")
         s3_storage.put_file(out_key, out_path)
         _gen_print(f"output uploaded to S3 (elapsed {time.perf_counter() - t0:.2f}s)")
+        out_thumb = work_dir / f"{uid}_out_thumb.jpg"
+        if thumbnail.extract_video_thumbnail_jpg(out_path, out_thumb):
+            s3_storage.put_file(thumbnail.thumb_key_for_video_key(out_key), out_thumb)
 
         if uploaded_new_file and uid_user is not None and bg_path and bg_path.is_file():
             bg_uuid = str(uuid.uuid4())
@@ -682,25 +687,41 @@ def api_generate():
         return jsonify({"error": str(e)}), 500
 
 
+def _output_access_allowed(gen) -> bool:
+    if not gen or not gen.user_id:
+        return False
+    owner_id = gen.user_id
+    if skip_auth():
+        return True
+    sid = session.get("user_id")
+    if sid is not None and int(sid) == owner_id:
+        return True
+    owner = get_user_by_id(owner_id)
+    return owner is not None and owner.gallery_public
+
+
+@app.route("/api/output/<uid>/thumb")
+def api_output_thumb(uid):
+    """JPEG thumbnail (S3 key: same as video with `.thumb.jpg` suffix)."""
+    err = _require_s3()
+    if err:
+        return err
+    gen = get_generation_by_job_uid(uid)
+    if not _output_access_allowed(gen):
+        return jsonify({"error": "not found"}), 404
+    tkey = thumbnail.thumb_key_for_video_key(gen.output_key)
+    if not s3_storage.exists(tkey):
+        return jsonify({"error": "not found"}), 404
+    return s3_storage.response_for_key(tkey, "thumb.jpg", mimetype="image/jpeg")
+
+
 @app.route("/api/output/<uid>")
 def api_output(uid):
     err = _require_s3()
     if err:
         return err
     gen = get_generation_by_job_uid(uid)
-    if not gen or not gen.user_id:
-        return jsonify({"error": "not found"}), 404
-    owner_id = gen.user_id
-    if skip_auth():
-        allow = True
-    else:
-        sid = session.get("user_id")
-        if sid is not None and int(sid) == owner_id:
-            allow = True
-        else:
-            owner = get_user_by_id(owner_id)
-            allow = owner is not None and owner.gallery_public
-    if not allow:
+    if not _output_access_allowed(gen):
         return jsonify({"error": "not found"}), 404
     ext = (gen.output_format or "mp4").lower().lstrip(".")
     if ext not in ("mp4", "mkv"):

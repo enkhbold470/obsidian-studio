@@ -6,6 +6,7 @@ import {
   Film,
   Mic,
   Music,
+  Play,
   Timer,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -17,6 +18,69 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatElapsedSeconds } from "../formatElapsed";
 import { panelClass } from "../lib/obsidianStyles";
+
+const RenderDetailVideoPanel = ({ slug }: { slug: string }) => {
+  const [videoStarted, setVideoStarted] = useState(false);
+  const [thumbFailed, setThumbFailed] = useState(false);
+  const videoSrc = apiUrl(`/api/output/${slug}`);
+  const thumbSrc = apiUrl(`/api/output/${slug}/thumb`);
+
+  return (
+    <div className="relative overflow-hidden rounded-xl border border-border/50 bg-card shadow-2xl">
+      {videoStarted ? (
+        <video
+          controls
+          playsInline
+          preload="metadata"
+          className="aspect-video max-h-[80vh] w-full object-contain"
+          src={videoSrc}
+        />
+      ) : (
+        <div className="relative aspect-video max-h-[80vh] w-full bg-muted/20">
+          {thumbFailed ? (
+            <div className="flex h-full min-h-[12rem] w-full items-center justify-center bg-muted/40">
+              <Film className="h-20 w-20 text-muted-foreground/35" aria-hidden />
+            </div>
+          ) : (
+            <img
+              src={thumbSrc}
+              alt=""
+              className="h-full w-full object-contain"
+              loading="eager"
+              decoding="async"
+              onError={() => setThumbFailed(true)}
+            />
+          )}
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/70 to-transparent"
+            aria-hidden
+          />
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <button
+              type="button"
+              onClick={() => setVideoStarted(true)}
+              className="group/play flex flex-col items-center gap-3 rounded-2xl outline-none ring-offset-2 ring-offset-background focus-visible:ring-2 focus-visible:ring-primary"
+              aria-label="Play video"
+            >
+              <span className="flex h-20 w-20 items-center justify-center rounded-full bg-black/55 text-white shadow-lg ring-2 ring-white/25 transition group-hover/play:scale-105 group-hover/play:bg-black/65">
+                <Play className="h-10 w-10 translate-x-0.5 fill-current" aria-hidden />
+              </span>
+              <span className="rounded-md bg-black/45 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white/95">
+                Play
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+      {videoStarted ? (
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent"
+          aria-hidden
+        />
+      ) : null}
+    </div>
+  );
+};
 
 export const RenderDetail = () => {
   const { userId, slug } = useParams<{ userId: string; slug: string }>();
@@ -188,18 +252,7 @@ export const RenderDetail = () => {
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
         <div className="space-y-6 lg:col-span-9">
-          <div className="relative overflow-hidden rounded-xl border border-border/50 bg-card shadow-2xl">
-            <video
-              key={videoSrc}
-              controls
-              className="aspect-video max-h-[80vh] w-full object-contain"
-              src={videoSrc}
-            />
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent"
-              aria-hidden
-            />
-          </div>
+          <RenderDetailVideoPanel key={slug} slug={slug} />
 
           <div className="flex flex-wrap items-center justify-between gap-4 p-1">
             <Button

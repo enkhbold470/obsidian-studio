@@ -10,6 +10,33 @@ import { Label } from "@/components/ui/label";
 import { formatElapsedSeconds } from "../formatElapsed";
 import { panelClass } from "../lib/obsidianStyles";
 
+const outputThumbPath = (jobUid: string, thumbUrl?: string) =>
+  thumbUrl?.startsWith("/") ? thumbUrl : `/api/output/${jobUid}/thumb`;
+
+const RenderCardThumb = ({ jobUid, thumbUrl }: { jobUid: string; thumbUrl?: string }) => {
+  const [failed, setFailed] = useState(false);
+  const src = apiUrl(outputThumbPath(jobUid, thumbUrl));
+
+  if (failed) {
+    return (
+      <div className="flex h-full min-h-[8rem] w-full items-center justify-center bg-muted/50" aria-hidden>
+        <Film className="h-14 w-14 text-muted-foreground/35" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      className="h-full w-full object-cover transition group-hover:brightness-110"
+      onError={() => setFailed(true)}
+    />
+  );
+};
+
 export const RendersGallery = () => {
   const { userId } = useParams<{ userId: string }>();
   const id = userId ? Number.parseInt(userId, 10) : NaN;
@@ -153,14 +180,8 @@ export const RendersGallery = () => {
               to={`/u/${id}/renders/${h.jobUid}`}
               className="group overflow-hidden rounded-xl border border-border/50 bg-card shadow-primaryGlow transition hover:border-primary/30 hover:bg-muted/50"
             >
-              <div className="aspect-video bg-muted/30">
-                <video
-                  className="h-full w-full object-cover pointer-events-none transition group-hover:brightness-110"
-                  src={apiUrl(`/api/output/${h.jobUid}`)}
-                  muted
-                  playsInline
-                  preload="metadata"
-                />
+              <div className="relative aspect-video overflow-hidden bg-muted/30">
+                <RenderCardThumb jobUid={h.jobUid} thumbUrl={h.thumbUrl} />
               </div>
               <div className="space-y-1 p-4">
                 <p className="truncate font-headline font-bold text-foreground">
