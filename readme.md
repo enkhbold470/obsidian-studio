@@ -1,11 +1,11 @@
 # brainrot video generator
 
-CLI-only: AI-written Peter vs Stewie dialogue, TTS, FFmpeg overlays on your background video. No web server.
+CLI-only: AI-written Peter vs Inky dialogue, MOSS TTSD, FFmpeg overlays on your background video. No web server.
 
 ## Setup
 
-1. Copy **`core/.env.example`** to **`.env`** at the repository root and set **`OPENAI_API_KEY`** (and any provider URLs you use).
-2. Put **`peter.png`** / **`stewie.png`** under the repo root, **`assets/`**, or **`core/assets/`**.
+1. Copy **`core/.env.example`** to **`.env`** at the repository root and set **`OPENAI_API_KEY`**, **`MOSS_API_KEY`**, **`VOICE_ID_PETER`** ([S1]) and **`VOICE_ID_INKY`** ([S2]). See **`docs/MOSS_API_MULTI_DIALOGUE_TTS.md`**. Optional: **`MOSS_USE_SINGLE_VOICE_FOR_ALL=1`** plus **`MOSS_SINGLE_VOICE_ID`** to force one voice for both speakers.
+2. Put **`peter.png`** / **`inky.png`** under the repo root, **`assets/`**, or **`core/assets/`**.
 
 ```bash
 uv sync
@@ -25,7 +25,7 @@ uv run python -m core.cli --topic "..." --bg /path/to/bg.mp4 [--lines 8] [--spee
 
 ## Layout
 
-- **`core/`** — `brainrot.py` (pipeline), `cli.py`, `paths.py`, **`assets/`**
+- **`core/`** — `brainrot.py` (pipeline), `moss_ttsd.py` (MOSS-TTSD), `moss_tts.py` (optional single-speaker smoke test), `cli.py`, `paths.py`, **`assets/`**
 - **`temp_build/`** — scratch (git-ignored)
 - **`docs/`** — extra notes
 
