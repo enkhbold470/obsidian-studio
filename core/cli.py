@@ -3,8 +3,8 @@ import argparse
 from pathlib import Path
 
 from dotenv import load_dotenv
-from backend.paths import PROJECT_ROOT
-from backend.brainrot import Config, get_llm_client, get_tts_client, run_pipeline
+from core.paths import PROJECT_ROOT
+from core.brainrot import Config, get_llm_client, get_tts_client, run_pipeline
 
 load_dotenv(PROJECT_ROOT / ".env")
 

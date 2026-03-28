@@ -182,16 +182,16 @@ This guide will walk you through installation, authentication, and core features
 
 <Steps>
   <Step title="Install the SDK">
-    Install via pip (Python 3.9 or higher required):
+    Install via uv (Python 3.9 or higher required):
 
     ```bash  theme={null}
-    pip install fish-audio-sdk
+    uv add fish-audio-sdk
     ```
 
     For audio playback utilities, install with the `utils` extra:
 
     ```bash  theme={null}
-    pip install fish-audio-sdk[utils]
+    uv add "fish-audio-sdk[utils]"
     ```
   </Step>
 

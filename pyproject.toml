@@ -1,0 +1,21 @@
+[project]
+name = "brainrot"
+version = "0.1.0"
+description = "Brainrot video generator — CLI + FFmpeg pipeline"
+readme = "readme.md"
+requires-python = ">=3.11"
+dependencies = [
+    "openai",
+    "python-dotenv",
+    "requests",
+]
+
+[project.scripts]
+brainrot = "core.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["core"]

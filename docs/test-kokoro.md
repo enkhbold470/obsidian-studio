@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from backend.brainrot import get_tts_client, kokoro_speech_to_file
+from core.brainrot import get_tts_client, kokoro_speech_to_file
 
 PAYLOAD = {
     "model": "kokoro",
