@@ -11,7 +11,7 @@ Recommended layout: **two applications** — API (this repo’s `Dockerfile`) an
    | Name | Value |
    |------|--------|
    | `OPENAI_API_KEY` | Your key |
-   | `DATABASE_URL` | PostgreSQL URL (Alembic migrations in `alembic/versions/`) |
+   | `DATABASE_URL` | PostgreSQL URL (Alembic migrations in `backend/alembic/versions/`) |
    | `SECRET_KEY` | Long random string (session integrity) |
    | `PORT` | `5001` (or match EXPOSE) |
    | `CORS_ORIGINS` | **Required** if the SPA is on another origin: comma-separated browser origins, e.g. `http://your-frontend-host:4173` or your public app URL. Must match what the browser sends as `Origin` (scheme + host + port). |

@@ -4,17 +4,17 @@ Generate vertical “brainrot” debate clips: AI-written Peter vs Stewie dialog
 
 ## Repo layout
 
-- **`backend/`** — Flask API, SQLite auth, video pipeline (`brainrot.py`).
+- **`backend/`** — Flask API, Postgres auth, video pipeline (`brainrot.py`), Alembic, Python deps (`requirements.txt`), CLI (`cli.py`), character **`assets/`**.
 - **`frontend/`** — Vite + React + Tailwind UI.
 - **`storage/public/`** — list of bundled background videos for the UI.
 - **`storage/uploads/`** — per-request uploads (git-ignored).
-- **`assets/`** — `peter.png` / `stewie.png` (see `assets/README.md`).
 - **`docs/`** — architecture, local dev, **Dokploy** deploy, optional scale-up notes (`OPERATIONS.md`).
+- **Root** — `Dockerfile`, `docker-compose.yml`, `readme.md`, `license` (minimal).
 
 ## Quick start (web)
 
-1. Copy `.env.example` to `.env` and set `OPENAI_API_KEY` and a strong `SECRET_KEY`.
-2. Add character PNGs under **`assets/`** or the repo root.
+1. Copy `backend/.env.example` to **`.env` at the repository root** and set `OPENAI_API_KEY` and a strong `SECRET_KEY`.
+2. Add character PNGs under **`backend/assets/`** or the repo root.
 3. Put background videos in **`storage/public/`** (e.g. 9:16 `.mp4`).
 4. Install backend deps and run API: see **`docs/DEVELOPMENT.md`**.
 5. In another terminal: `cd frontend && bun install && bun run dev` → open the printed local URL.
@@ -24,7 +24,7 @@ Production options: (1) build the frontend (`cd frontend && bun run build`) and 
 ## CLI
 
 ```bash
-uv run app.py --topic "pineapple on pizza" --bg /path/to/video.mp4 [--lines 8] [--speed 1.2] [--shake 15]
+uv run python -m backend.cli --topic "pineapple on pizza" --bg /path/to/video.mp4 [--lines 8] [--speed 1.2] [--shake 15]
 ```
 
 ## Deploy

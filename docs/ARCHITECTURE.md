@@ -6,14 +6,16 @@
 |------|------|
 | `backend/brainrot.py` | OpenAI dialogue/TTS/Whisper, FFmpeg pipeline, optional bundled FFmpeg download (macOS). |
 | `backend/main.py` | Flask app: `/api/*` JSON + multipart, Postgres auth; optional SPA from `frontend/dist` if present. |
-| `backend/db.py` | SQLite users (`email`, `password_hash`) via `werkzeug.security`. |
+| `backend/db/` | SQLAlchemy models, Postgres session, repository helpers. |
 | `backend/paths.py` | `PROJECT_ROOT`, `storage/public`, `storage/uploads`, DB path under `backend/instance/`. |
+| `backend/cli.py` | CLI wrapper around `run_pipeline` for non-web use (`python -m backend.cli`). |
+| `backend/alembic/` | SQL migrations; config in `backend/alembic.ini`. |
+| `backend/requirements.txt` | Python dependencies (OpenAI SDK, Flask, Alembic, etc.). |
 | `frontend/` | Vite + React + Tailwind. Dev server proxies `/api` → Flask (`5001`). |
 | `storage/public/` | Read-only catalogue of bundled background videos for the UI. |
 | `storage/uploads/` | Temporary user uploads (per-render). |
 | `temp_build/` | Render working dirs, FFmpeg cache, rendered outputs (`outputs/`). |
-| `app.py` | CLI wrapper around `run_pipeline` for non-web use. |
-| `assets/` | `peter.png` / `stewie.png` (or same files at repo root — resolved automatically). |
+| `backend/assets/` | `peter.png` / `stewie.png` (or same files at repo root — resolved automatically). |
 
 ## Auth
 
@@ -33,5 +35,5 @@ If `frontend/dist` exists, Flask serves the SPA for non-`api` routes. Production
 
 ## Dependencies
 
-- **Python**: `requirements.txt` (OpenAI SDK, Flask, flask-cors, python-dotenv).
+- **Python**: `backend/requirements.txt` (OpenAI SDK, Flask, flask-cors, python-dotenv).
 - **Node**: managed in `frontend/package.json`; Bun is used in Docker and documented for local dev.

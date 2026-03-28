@@ -7,13 +7,10 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend ./backend
-COPY alembic.ini .
-COPY alembic ./alembic
-COPY assets ./assets
 
 RUN mkdir -p storage/public storage/uploads temp_build
 

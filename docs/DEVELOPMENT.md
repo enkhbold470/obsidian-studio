@@ -5,7 +5,7 @@
 - Python 3.12+ with `uv` or `pip`
 - Bun (or Node + npm) for the frontend
 - PostgreSQL 16+ (local install or `docker compose up postgres` only)
-- `OPENAI_API_KEY` in `.env` at the **repository root** (same level as `app.py`)
+- `OPENAI_API_KEY` in `.env` at the **repository root** (copy from `backend/.env.example`)
 
 ## Environment variables
 
@@ -24,11 +24,11 @@
 From the repo root (set `DATABASE_URL`, e.g. `postgresql://brainrot:brainrot@localhost:5432/brainrot`):
 
 ```bash
-uv pip install -r requirements.txt
+uv pip install -r backend/requirements.txt
 uv run python -m backend.main
 ```
 
-Schema changes: edit SQLAlchemy models in `backend/db/models.py`, then `alembic revision --autogenerate -m "describe"` (or hand-write a revision), and apply with `alembic upgrade head` or rely on app startup (`init_db()` runs Alembic to `head`).
+Schema changes: edit SQLAlchemy models in `backend/db/models.py`, then from the repo root run `uv run alembic -c backend/alembic.ini revision --autogenerate -m "describe"` (or hand-write a revision), and apply with `uv run alembic -c backend/alembic.ini upgrade head` or rely on app startup (`init_db()` runs Alembic to `head`).
 
 API: `http://127.0.0.1:5001/api/options` — also `GET /` (welcome JSON) and `GET /health` (DB liveness).
 
@@ -47,7 +47,7 @@ Log in or register, or set `SKIP_AUTH=1` on the backend to bypass auth during it
 ## One-off CLI render
 
 ```bash
-uv run app.py --topic "your topic" --bg /path/to/bg.mp4 --output out.mp4
+uv run python -m backend.cli --topic "your topic" --bg /path/to/bg.mp4 --output out.mp4
 ```
 
 ## Linting

@@ -7,7 +7,7 @@ from alembic import command
 from alembic.config import Config
 
 from backend.db.url import sqlalchemy_url_from_database_url
-from backend.paths import PROJECT_ROOT
+from backend.paths import BACKEND_ROOT
 
 
 def _dsn() -> str:
@@ -18,7 +18,7 @@ def _dsn() -> str:
 
 
 def apply_alembic_migrations() -> None:
-    alembic_ini = PROJECT_ROOT / "alembic.ini"
+    alembic_ini = BACKEND_ROOT / "alembic.ini"
     if not alembic_ini.is_file():
         raise FileNotFoundError(f"Missing {alembic_ini}")
     cfg = Config(str(alembic_ini))

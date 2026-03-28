@@ -17,7 +17,7 @@ from typing import Any
 
 from openai import OpenAI
 
-from backend.paths import PROJECT_ROOT
+from backend.paths import BACKEND_ROOT, PROJECT_ROOT
 
 _log = logging.getLogger("brainrot.pipeline")
 
@@ -326,12 +326,14 @@ ASS_FONTS = ["Arial", "Arial Black", "Impact", "Helvetica", "Verdana", "Comic Sa
 
 
 def _overlay_png(root: Path, basename: str) -> Path:
-    """Resolve peter.png / stewie.png from project root or assets/."""
-    for base in (root, root / "assets"):
+    """Resolve peter.png / stewie.png from project root, root/assets/, or backend/assets/."""
+    for base in (root, root / "assets", BACKEND_ROOT / "assets"):
         p = base / basename
         if p.is_file():
             return p
-    raise FileNotFoundError(f"Missing {basename} — place it in {root} or {root / 'assets'}")
+    raise FileNotFoundError(
+        f"Missing {basename} — place it in {root}, {root / 'assets'}, or {BACKEND_ROOT / 'assets'}"
+    )
 
 
 def _rgb_to_ass(color: str) -> str:
